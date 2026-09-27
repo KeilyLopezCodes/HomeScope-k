@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { authenticate } from '../../shared/middleware/auth.js';
+import * as controller from './agenda.controller.js';
+const router = Router();
+router.get('/disponibilidad/:vendedorId', controller.getDisponibilidad);
+router.put('/disponibilidad', authenticate, controller.setDisponibilidad);
+router.get('/visitas', authenticate, controller.getVisitas);
+router.post('/visitas', authenticate, controller.agendarVisita);
+router.put('/visitas/:id', authenticate, controller.actualizarVisita);
+export default router;

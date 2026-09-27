@@ -1,0 +1,11 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// El modelo completo se definirá en la HU-04
+// Las tablas siguen snake_case en BD y camelCase en Prisma (@map)

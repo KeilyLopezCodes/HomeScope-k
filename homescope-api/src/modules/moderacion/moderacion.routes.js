@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { authenticate } from '../../shared/middleware/auth.js';
+import { requirePermission } from '../../shared/middleware/auth.js';
+import * as controller from './moderacion.controller.js';
+const router = Router();
+router.get('/usuarios', authenticate, requirePermission('admin.usuarios.ver'), controller.getUsuarios);
+router.put('/usuarios/:id/estado', authenticate, requirePermission('admin.usuarios.gestionar'), controller.cambiarEstadoUsuario);
+router.get('/reportes', authenticate, requirePermission('admin.reportes.ver'), controller.getReportes);
+router.put('/reportes/:id', authenticate, requirePermission('admin.reportes.gestionar'), controller.resolverReporte);
+router.get('/verificaciones', authenticate, requirePermission('admin.verificaciones.ver'), controller.getVerificaciones);
+router.put('/verificaciones/:id', authenticate, requirePermission('admin.verificaciones.gestionar'), controller.resolverVerificacion);
+export default router;
