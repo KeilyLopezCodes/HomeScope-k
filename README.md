@@ -158,10 +158,16 @@ Abrir **http://localhost:3000/health** en el navegador o ejecutar:
 curl http://localhost:3000/health
 ```
 
-Respuesta esperada:
+Respuesta esperada con BD conectada:
 
 ```json
-{ "status": "ok" }
+{ "status": "ok", "db": "ok" }
+```
+
+Respuesta si la BD no está disponible (HTTP 503):
+
+```json
+{ "status": "ok", "db": "error" }
 ```
 
 ### Backend — Endpoints (respuesta 501)
@@ -186,6 +192,7 @@ curl http://localhost:3000/api/v1/propiedades
 |---|---|
 | `npm run dev` | Inicia el servidor con recarga automática |
 | `npm start` | Inicia el servidor sin recarga |
+| `npm run db:generate` | Genera el cliente de Prisma |
 | `npm run db:migrate` | Crea y aplica migraciones de Prisma |
 | `npm run db:deploy` | Aplica migraciones en producción |
 | `npm run db:seed` | Carga datos iniciales (roles, permisos, tipos) |
