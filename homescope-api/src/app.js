@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { env } from './config/env.js';
+import { prisma } from './config/prisma.js';
 import { errorHandler } from './shared/middleware/errorHandler.js';
 
 // Módulos
@@ -21,7 +22,14 @@ app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 
 // Health check
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', db: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'ok', db: 'error' });
+  }
+});
 
 // Rutas
 app.use('/api/v1/auth', identidadRoutes);
