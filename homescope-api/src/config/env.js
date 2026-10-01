@@ -10,10 +10,10 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string(),
   GOOGLE_MAPS_SERVER_KEY: z.string(),
   CLOUDINARY_URL: z.string(),
-  SMTP_HOST: z.string(),
-  SMTP_USER: z.string(),
-  SMTP_PASS: z.string(),
-  MAIL_FROM: z.string(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

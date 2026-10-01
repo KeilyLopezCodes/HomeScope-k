@@ -1,8 +1,11 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env.js';
 import { prisma } from './config/prisma.js';
+import { swaggerSpec } from './config/swagger.js';
 import { errorHandler } from './shared/middleware/errorHandler.js';
 
 // Módulos
@@ -17,9 +20,22 @@ import moderacionRoutes from './modules/moderacion/moderacion.routes.js';
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'script-src':  ["'self'", "'unsafe-inline'"],
+      'img-src':     ["'self'", 'data:', 'https://validator.swagger.io'],
+    },
+  },
+}));
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
+
+// Swagger UI
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // Health check
 app.get('/health', async (_req, res) => {

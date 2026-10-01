@@ -7,10 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Modelo temporal para inicializar el cliente de Prisma.
-// El modelo completo se definirá en la HU-04.
-model Placeholder {
-  id Int @id @default(autoincrement())
+model Usuario {
+  id                Int              @id @default(autoincrement())
+  email             String           @unique @db.VarChar(255)
+  nombre            String           @db.VarChar(100)
+  telefono          String?          @db.VarChar(20)
+  password_hash     String
+  rol               String           @default("comprador") @db.VarChar(20)
+  estado            String           @default("pendiente") @db.VarChar(20)
+  correo_verificado Boolean          @default(false)
+  creado_en         DateTime         @default(now()) @db.Timestamptz
+  actualizado_en    DateTime         @updatedAt @db.Timestamptz
+  tokens            TokenUsuario[]
 
-  @@map("placeholder")
+  @@map("usuario")
+}
+
+// Almacena refresh tokens y tokens de verificación/recuperación
+model TokenUsuario {
+  id         Int       @id @default(autoincrement())
+  usuario_id Int
+  tipo       String    @db.VarChar(20)  // 'refresh' | 'verificacion' | 'recuperacion'
+  token_hash String    @unique
+  expira_en  DateTime  @db.Timestamptz
+  usado      Boolean   @default(false)
+  creado_en  DateTime  @default(now()) @db.Timestamptz
+  usuario    Usuario   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id])
+  @@map("token_usuario")
 }
