@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, RegisterPage, LoginPage, useAuth } from '../features/auth';
+import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, useAuth } from '../features/auth';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -15,6 +15,8 @@ export default function App() {
         {/* auth — públicas */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
+        <Route path="/recuperar" element={<ForgotPasswordPage />} />
+        <Route path="/recuperar/:token" element={<ResetPasswordPage />} />
         {/* raíz redirige según sesión */}
         <Route path="/" element={<Navigate to="/propiedades" replace />} />
         {/* rutas protegidas */}
