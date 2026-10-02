@@ -3,18 +3,22 @@ import { env } from '../../config/env.js';
 
 async function crearTransporter() {
   if (env.NODE_ENV !== 'production') {
-    // En desarrollo: Ethereal captura los correos sin enviarlos.
-    // La URL para verlos se imprime en la consola.
-    const cuenta = await nodemailer.createTestAccount();
-    console.log('📧  Ethereal SMTP listo — credenciales de prueba:');
-    console.log(`    Usuario: ${cuenta.user}`);
-    console.log(`    Pass:    ${cuenta.pass}`);
-    return nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: { user: cuenta.user, pass: cuenta.pass },
-    });
+    try {
+      const cuenta = await nodemailer.createTestAccount();
+      console.log('📧  Ethereal SMTP listo — credenciales de prueba:');
+      console.log(`    Usuario: ${cuenta.user}`);
+      console.log(`    Pass:    ${cuenta.pass}`);
+      return nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: { user: cuenta.user, pass: cuenta.pass },
+      });
+    } catch {
+      // Ethereal no disponible (sin internet). Usar transporte nulo para no bloquear el registro.
+      console.warn('📧  Ethereal no disponible. Los correos se omitirán en desarrollo.');
+      return nodemailer.createTransport({ jsonTransport: true });
+    }
   }
 
   // En producción: usa las variables de entorno reales
