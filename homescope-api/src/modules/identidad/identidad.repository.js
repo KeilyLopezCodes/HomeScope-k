@@ -42,4 +42,10 @@ export class IdentidadRepository {
       data: { usado: true },
     });
   }
+
+  async buscarTokenPorHash(tokenHash) {
+    return prisma.tokenUsuario.findUnique({
+      where: { token_hash: tokenHash },
+    });
+  }
 }

@@ -18,3 +18,11 @@ export const updatePerfilSchema = z.object({
   nombre:   z.string().min(2).max(100).optional(),
   telefono: z.string().max(20).optional(),
 });
+
+export const recuperarSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  password: z.string().min(8).max(72),
+});

@@ -1,5 +1,5 @@
 import { IdentidadService } from './identidad.service.js';
-import { registroSchema, loginSchema, updatePerfilSchema } from './identidad.schemas.js';
+import { registroSchema, loginSchema, updatePerfilSchema, recuperarSchema, resetPasswordSchema } from './identidad.schemas.js';
 
 const service = new IdentidadService();
 
@@ -41,8 +41,9 @@ export async function refresh(req, res, next) {
     const tokenPlano = req.cookies?.refreshToken;
     if (!tokenPlano) return res.status(401).json({ error: { code: 'NO_TOKEN', message: 'Token requerido' } });
 
-    const { accessToken, refreshToken } = await service.refresh(tokenPlano);
-    res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTS, maxAge: 24 * 60 * 60 * 1000 });
+    const { accessToken, refreshToken, recordar } = await service.refresh(tokenPlano);
+    const maxAge = recordar ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTS, maxAge });
     res.json({ accessToken });
   } catch (err) { next(err); }
 }
@@ -70,5 +71,19 @@ export async function updatePerfil(req, res, next) {
   } catch (err) { next(err); }
 }
 
-export const solicitarRecuperacion = (_req, res) => res.status(501).json({ message: 'Not implemented' });
-export const resetPassword = (_req, res) => res.status(501).json({ message: 'Not implemented' });
+export async function solicitarRecuperacion(req, res, next) {
+  try {
+    const { email } = recuperarSchema.parse(req.body);
+    await service.solicitarRecuperacion(email);
+    // Respuesta genérica siempre (no revelar si el correo existe)
+    res.json({ message: 'Si el correo está registrado, recibirás un enlace en breve.' });
+  } catch (err) { next(err); }
+}
+
+export async function resetPassword(req, res, next) {
+  try {
+    const { password } = resetPasswordSchema.parse(req.body);
+    await service.resetPassword(req.params.token, password);
+    res.json({ message: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' });
+  } catch (err) { next(err); }
+}

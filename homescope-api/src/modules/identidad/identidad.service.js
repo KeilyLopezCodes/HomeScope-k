@@ -8,10 +8,11 @@ import { IdentidadRepository } from './identidad.repository.js';
 
 const repo = new IdentidadRepository();
 const BCRYPT_ROUNDS = 12;
-const ACCESS_TTL  = '15m';
-const REFRESH_TTL_NORMAL  = '1d';
+const ACCESS_TTL           = '15m';
+const REFRESH_TTL_NORMAL   = '1d';
 const REFRESH_TTL_RECORDAR = '30d';
-const VERIFICACION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
+const VERIFICACION_TTL_MS  = 24 * 60 * 60 * 1000; // 24 h
+const RECUPERACION_TTL_MS  =  1 * 60 * 60 * 1000; //  1 h
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -141,21 +142,71 @@ export class IdentidadService {
     if (usuario.estado === 'suspendido')
       throw new AppError('CUENTA_SUSPENDIDA', 'Tu cuenta ha sido suspendida', 403);
 
+    // Preservar la duración original del token (recordar = expira en más de 1 día)
+    const ttlOriginalMs = new Date(registro.expira_en) - new Date(registro.creado_en);
+    const recordar = ttlOriginalMs > 24 * 60 * 60 * 1000;
+    const ttlNuevoMs = recordar ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+
     const accessToken  = generarAccessToken(usuario);
-    const refreshNuevo = generarRefreshToken(usuario, false);
+    const refreshNuevo = generarRefreshToken(usuario, recordar);
 
     await repo.crearToken({
       usuarioId: usuario.id,
       tipo: 'refresh',
       tokenHash: hashToken(refreshNuevo),
-      expiraEn: expiracionDesde(24 * 60 * 60 * 1000),
+      expiraEn: expiracionDesde(ttlNuevoMs),
     });
 
-    return { accessToken, refreshToken: refreshNuevo };
+    return { accessToken, refreshToken: refreshNuevo, recordar };
   }
 
   async logout(usuarioId) {
     await repo.revocarTokensDeUsuario(usuarioId, 'refresh');
+  }
+
+  async solicitarRecuperacion(email) {
+    const usuario = await repo.buscarPorEmail(email);
+    // Respuesta genérica siempre para no revelar si el correo existe
+    if (!usuario) return;
+
+    // Invalidar tokens de recuperación previos no usados
+    await repo.revocarTokensDeUsuario(usuario.id, 'recuperacion');
+
+    const tokenPlano = crypto.randomBytes(32).toString('hex');
+    await repo.crearToken({
+      usuarioId: usuario.id,
+      tipo: 'recuperacion',
+      tokenHash: hashToken(tokenPlano),
+      expiraEn: expiracionDesde(RECUPERACION_TTL_MS),
+    });
+
+    const url = `${env.CORS_ORIGIN}/recuperar/${tokenPlano}`;
+    await mailAdapter.send(
+      email,
+      'Recupera tu contraseña — HomeScope',
+      `<p>Hola ${usuario.nombre},</p>
+       <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+       <p>Haz clic en el siguiente enlace (válido 1 hora):</p>
+       <p><a href="${url}">${url}</a></p>
+       <p>Si no solicitaste esto, ignora este correo.</p>`
+    );
+  }
+
+  async resetPassword(tokenPlano, nuevaPassword) {
+    const registro = await repo.buscarToken(hashToken(tokenPlano));
+
+    if (!registro || registro.tipo !== 'recuperacion' || registro.usado)
+      throw new AppError('TOKEN_INVALIDO', 'El enlace no es válido o ya fue utilizado.', 400);
+
+    if (registro.expira_en < new Date())
+      throw new AppError('TOKEN_EXPIRADO', 'El enlace ha expirado. Solicita uno nuevo.', 400);
+
+    const passwordHash = await bcrypt.hash(nuevaPassword, BCRYPT_ROUNDS);
+
+    await repo.marcarTokenUsado(registro.id);
+    await repo.actualizarUsuario(registro.usuario_id, { password_hash: passwordHash });
+    // Revocar todas las sesiones activas por seguridad
+    await repo.revocarTokensDeUsuario(registro.usuario_id, 'refresh');
   }
 
   async getPerfil(usuarioId) {
