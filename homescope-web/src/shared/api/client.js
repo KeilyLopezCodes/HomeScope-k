@@ -27,7 +27,7 @@ export async function apiClient(path, options = {}) {
 
   let res = await fetch(`${API_URL}${path}`, { ...options, headers, credentials: 'include' });
 
-  if (res.status === 401) {
+  if (res.status === 401 && accessToken) {
     const newToken = await refreshToken();
     res = await fetch(`${API_URL}${path}`, {
       ...options,
@@ -37,7 +37,13 @@ export async function apiClient(path, options = {}) {
   }
 
   if (!res.ok) {
-    const error = await res.json();
+    const body = await res.json().catch(() => ({}));
+    // Backend returns { error: { code, message } } or { message }
+    const err = body.error ?? body;
+    const error = new Error(err.message ?? 'Error inesperado');
+    error.code = err.code;
+    error.details = err.details;
+    error.status = res.status;
     throw error;
   }
 

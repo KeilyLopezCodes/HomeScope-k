@@ -1,2 +1,3 @@
-// TODO: Implementar feature auth
-// Páginas: Registro, Login, RecuperarPassword, ResetPassword, VerificarCorreo
+export { AuthProvider, useAuth } from './authContext';
+export { default as RegisterPage } from './RegisterPage';
+export { default as LoginPage } from './LoginPage';
