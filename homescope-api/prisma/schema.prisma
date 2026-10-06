@@ -7,32 +7,203 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Módulo: Usuarios y seguridad ────────────────────────────────────────────
+
+model Rol {
+  id          Int          @id @default(autoincrement()) @db.SmallInt
+  nombre      String       @unique @db.VarChar(30) // comprador | vendedor | administrador
+  usuario_rol UsuarioRol[]
+  rol_permiso RolPermiso[]
+
+  @@map("rol")
+}
+
+model Permiso {
+  id          Int          @id @default(autoincrement()) @db.SmallInt
+  codigo      String       @unique @db.VarChar(60)
+  modulo      String       @db.VarChar(40)
+  descripcion String       @db.VarChar(200)
+  rol_permiso RolPermiso[]
+
+  @@map("permiso")
+}
+
+model RolPermiso {
+  rol_id     Int
+  permiso_id Int
+  rol        Rol     @relation(fields: [rol_id], references: [id], onDelete: Cascade)
+  permiso    Permiso @relation(fields: [permiso_id], references: [id], onDelete: Cascade)
+
+  @@id([rol_id, permiso_id])
+  @@map("rol_permiso")
+}
+
 model Usuario {
   id                Int              @id @default(autoincrement())
   email             String           @unique @db.VarChar(255)
   nombre            String           @db.VarChar(100)
+  apellido          String           @db.VarChar(100)
   telefono          String?          @db.VarChar(20)
+  foto_url          String?          @db.VarChar(500)
   password_hash     String
-  rol               String           @default("comprador") @db.VarChar(20)
-  estado            String           @default("pendiente") @db.VarChar(20)
+  estado            String           @default("pendiente") @db.VarChar(20) // activo | suspendido | inhabilitado
   correo_verificado Boolean          @default(false)
-  creado_en         DateTime         @default(now()) @db.Timestamptz
+  fecha_registro    DateTime         @default(now()) @db.Timestamptz
+  ultimo_acceso     DateTime?        @db.Timestamptz
   actualizado_en    DateTime         @updatedAt @db.Timestamptz
   tokens            TokenUsuario[]
+  usuario_rol       UsuarioRol[]
+  propiedades       Propiedad[]      @relation("PropiedadVendedor")
+  favoritos         Favorito[]
+  vistas            VistaPropiedad[]
+  historial_precios HistorialPrecio[] @relation("HistorialPrecioCambio")
+  conversaciones_comprador Conversacion[] @relation("ConversacionComprador")
+  conversaciones_vendedor  Conversacion[] @relation("ConversacionVendedor")
 
   @@map("usuario")
 }
 
+model UsuarioRol {
+  usuario_id       Int
+  rol_id           Int
+  fecha_asignacion DateTime @default(now()) @db.Timestamptz
+  usuario          Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  rol              Rol      @relation(fields: [rol_id], references: [id], onDelete: Cascade)
+
+  @@id([usuario_id, rol_id])
+  @@map("usuario_rol")
+}
+
+model TipoPropiedad {
+  id         Int         @id @default(autoincrement()) @db.SmallInt
+  nombre     String      @unique @db.VarChar(40) // casa|apartamento|terreno|local|oficina
+  propiedades Propiedad[]
+
+  @@map("tipo_propiedad")
+}
+
+model Propiedad {
+  id                 Int              @id @default(autoincrement())
+  vendedor_id        Int
+  tipo_propiedad_id  Int              @db.SmallInt
+  titulo             String           @db.VarChar(150)
+  descripcion        String?          @db.Text
+  modalidad          String           @db.VarChar(10)   // venta|alquiler
+  precio             Decimal          @db.Decimal(14, 2)
+  moneda             String           @db.Char(3)       // GTQ|USD
+  habitaciones       Int?             @db.SmallInt
+  banos              Decimal?         @db.Decimal(3, 1)
+  area_m2            Decimal?         @db.Decimal(10, 2)
+  parqueos           Int?             @db.SmallInt
+  direccion          String           @db.VarChar(300)
+  zona               String?          @db.VarChar(50)
+  municipio          String?          @db.VarChar(80)
+  departamento       String?          @db.VarChar(80)
+  latitud            Decimal?         @db.Decimal(9, 6)
+  longitud           Decimal?         @db.Decimal(9, 6)
+  google_place_id    String?          @db.VarChar(200)
+  estado             String           @default("borrador") @db.VarChar(20) // borrador|publicado|pausado|vendido|alquilado
+  paso_formulario    Int              @default(1) @db.SmallInt
+  fecha_publicacion  DateTime?        @db.Timestamptz
+  fecha_expiracion   DateTime?        @db.Timestamptz
+  fecha_creacion     DateTime         @default(now()) @db.Timestamptz
+  fecha_actualizacion DateTime        @updatedAt @db.Timestamptz
+  vendedor           Usuario          @relation("PropiedadVendedor", fields: [vendedor_id], references: [id])
+  tipo_propiedad     TipoPropiedad    @relation(fields: [tipo_propiedad_id], references: [id])
+  favoritos          Favorito[]
+  vistas             VistaPropiedad[]
+  conversaciones     Conversacion[]
+  fotos              FotoPropiedad[]
+  historial_precios  HistorialPrecio[]
+
+  @@index([vendedor_id])
+  @@map("propiedad")
+}
+
+model FotoPropiedad {
+  id           Int       @id @default(autoincrement())
+  propiedad_id Int
+  url          String    @db.VarChar(500)
+  public_id    String    @db.VarChar(200)
+  orden        Int       @db.SmallInt
+  es_portada   Boolean   @default(false)
+  tamano_bytes Int
+  fecha_subida DateTime  @default(now()) @db.Timestamptz
+  propiedad    Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@index([propiedad_id])
+  @@map("foto_propiedad")
+}
+
+model HistorialPrecio {
+  id              Int       @id @default(autoincrement())
+  propiedad_id    Int
+  precio_anterior Decimal   @db.Decimal(14, 2)
+  precio_nuevo    Decimal   @db.Decimal(14, 2)
+  cambiado_por    Int
+  fecha_cambio    DateTime  @default(now()) @db.Timestamptz
+  propiedad       Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  usuario         Usuario   @relation("HistorialPrecioCambio", fields: [cambiado_por], references: [id])
+
+  @@index([propiedad_id])
+  @@map("historial_precio")
+}
+
+model Favorito {
+  usuario_id     Int
+  propiedad_id   Int
+  fecha_agregado DateTime  @default(now()) @db.Timestamptz
+  usuario        Usuario   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  propiedad      Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@id([usuario_id, propiedad_id])
+  @@index([usuario_id])
+  @@map("favorito")
+}
+
+model VistaPropiedad {
+  id           BigInt    @id @default(autoincrement())
+  propiedad_id Int
+  usuario_id   Int?
+  origen       String    @db.VarChar(20)  // catalogo|mapa|busqueda
+  fecha_vista  DateTime  @default(now()) @db.Timestamptz
+  propiedad    Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  usuario      Usuario?  @relation(fields: [usuario_id], references: [id], onDelete: SetNull)
+
+  @@index([propiedad_id])
+  @@index([usuario_id])
+  @@map("vista_propiedad")
+}
+
+model Conversacion {
+  id                Int       @id @default(autoincrement())
+  propiedad_id      Int
+  comprador_id      Int
+  vendedor_id       Int
+  fecha_inicio      DateTime  @default(now()) @db.Timestamptz
+  ultimo_mensaje_en DateTime? @db.Timestamptz
+  propiedad         Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  comprador         Usuario   @relation("ConversacionComprador", fields: [comprador_id], references: [id])
+  vendedor          Usuario   @relation("ConversacionVendedor", fields: [vendedor_id], references: [id])
+
+  @@unique([propiedad_id, comprador_id])
+  @@index([comprador_id])
+  @@index([vendedor_id])
+  @@map("conversacion")
+}
+
 // Almacena refresh tokens y tokens de verificación/recuperación
 model TokenUsuario {
-  id         Int       @id @default(autoincrement())
-  usuario_id Int
-  tipo       String    @db.VarChar(20)  // 'refresh' | 'verificacion' | 'recuperacion'
-  token_hash String    @unique
-  expira_en  DateTime  @db.Timestamptz
-  usado      Boolean   @default(false)
-  creado_en  DateTime  @default(now()) @db.Timestamptz
-  usuario    Usuario   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  id             Int       @id @default(autoincrement())
+  usuario_id     Int
+  tipo           String    @db.VarChar(30)  // 'refresh' | 'verificacion' | 'recuperacion'
+  token_hash     String    @unique @db.VarChar(255)
+  recordar_sesion Boolean  @default(false)
+  expira_en      DateTime  @db.Timestamptz
+  usado          Boolean   @default(false)
+  usado_en       DateTime? @db.Timestamptz
+  fecha_creacion DateTime  @default(now()) @db.Timestamptz
+  usuario        Usuario   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
 
   @@index([usuario_id])
   @@map("token_usuario")

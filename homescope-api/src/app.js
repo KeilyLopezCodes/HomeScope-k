@@ -11,6 +11,7 @@ import { errorHandler } from './shared/middleware/errorHandler.js';
 // Módulos
 import identidadRoutes from './modules/identidad/identidad.routes.js';
 import propiedadesRoutes from './modules/propiedades/propiedades.routes.js';
+import favoritosRoutes from './modules/favoritos/favoritos.routes.js';
 import geoIndiceRoutes from './modules/geo-indice/geo-indice.routes.js';
 import busquedaRoutes from './modules/busqueda/busqueda.routes.js';
 import comunicacionRoutes from './modules/comunicacion/comunicacion.routes.js';
@@ -50,6 +51,7 @@ app.get('/health', async (_req, res) => {
 // Rutas
 app.use('/api/v1/auth', identidadRoutes);
 app.use('/api/v1/propiedades', propiedadesRoutes);
+app.use('/api/v1/favoritos', favoritosRoutes);
 app.use('/api/v1/geo', geoIndiceRoutes);
 app.use('/api/v1/busqueda', busquedaRoutes);
 app.use('/api/v1/conversaciones', comunicacionRoutes);

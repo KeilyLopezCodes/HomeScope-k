@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, useAuth } from '../features/auth';
+import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, VerificarCorreoPage, useAuth } from '../features/auth';
 import { PerfilPage } from '../features/perfil';
 
 function ProtectedRoute({ children }) {
@@ -19,6 +19,7 @@ export default function App() {
         <Route path="/registro" element={<RegisterPage />} />
         <Route path="/recuperar" element={<ForgotPasswordPage />} />
         <Route path="/recuperar/:token" element={<ResetPasswordPage />} />
+        <Route path="/verificar-correo" element={<VerificarCorreoPage />} />
         {/* raíz redirige según sesión */}
         <Route path="/" element={<Navigate to="/propiedades" replace />} />
         {/* rutas protegidas */}

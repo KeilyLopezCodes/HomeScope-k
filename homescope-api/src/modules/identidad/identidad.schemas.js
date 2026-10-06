@@ -2,10 +2,11 @@ import { z } from 'zod';
 
 export const registroSchema = z.object({
   nombre:   z.string().min(2).max(100),
+  apellido: z.string().min(2).max(100),
   email:    z.string().email(),
   password: z.string().min(8).max(72),
   telefono: z.string().max(20).optional(),
-  rol:      z.enum(['comprador', 'vendedor']).default('comprador'),
+  roles:    z.array(z.enum(['comprador', 'vendedor'])).min(1).default(['comprador']),
 });
 
 export const loginSchema = z.object({
@@ -16,7 +17,9 @@ export const loginSchema = z.object({
 
 export const updatePerfilSchema = z.object({
   nombre:   z.string().min(2).max(100).optional(),
+  apellido: z.string().min(2).max(100).optional(),
   telefono: z.string().max(20).optional(),
+  foto_url: z.string().url().max(500).optional(),
 });
 
 export const recuperarSchema = z.object({

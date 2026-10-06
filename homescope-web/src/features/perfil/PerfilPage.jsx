@@ -9,7 +9,19 @@ import {
   getPropiedadesVistas,
 } from './perfilService';
 
-const ROL_LABEL = { comprador: 'Comprador', vendedor: 'Vendedor', admin: 'Administrador' };
+const ROL_LABEL = { comprador: 'Comprador', vendedor: 'Vendedor', admin: 'Administrador', administrador: 'Administrador' };
+
+function RolBadge({ roles = [] }) {
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {roles.map((r) => (
+        <span key={r} className="text-xs font-medium bg-blue-100 text-blue-700 rounded-full px-2.5 py-0.5">
+          {ROL_LABEL[r] ?? r}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function PropiedadCard({ item }) {
   return (
@@ -59,16 +71,16 @@ export default function PerfilPage() {
     getPerfil()
       .then((data) => {
         setPerfil(data);
-        reset({ nombre: data.nombre, telefono: data.telefono ?? '' });
+        reset({ nombre: data.nombre, apellido: data.apellido ?? '', telefono: data.telefono ?? '' });
       })
       .finally(() => setLoadingPerfil(false));
   }, [reset]);
 
   useEffect(() => {
     if (!perfil) return;
-    const rol = perfil.rol ?? '';
-    const esVendedor = rol.includes('vendedor') || rol === 'admin';
-    const esComprador = rol.includes('comprador') || rol === 'admin';
+    const roles = perfil.roles ?? (perfil.rol ? [perfil.rol] : []);
+    const esVendedor = roles.includes('vendedor') || roles.includes('administrador');
+    const esComprador = roles.includes('comprador') || roles.includes('administrador');
 
     if (esVendedor) getPropiedadesPublicadas().then((d) => setHistorial((h) => ({ ...h, publicadas: d })));
     if (esComprador) {
@@ -83,11 +95,12 @@ export default function PerfilPage() {
     try {
       const actualizado = await updatePerfil({
         nombre: data.nombre,
+        apellido: data.apellido,
         telefono: data.telefono || undefined,
       });
       setPerfil(actualizado);
       updateUser({ nombre: actualizado.nombre });
-      reset({ nombre: actualizado.nombre, telefono: actualizado.telefono ?? '' });
+      reset({ nombre: actualizado.nombre, apellido: actualizado.apellido ?? '', telefono: actualizado.telefono ?? '' });
       setEditando(false);
       setSuccessMsg('Perfil actualizado correctamente.');
     } catch (err) {
@@ -104,8 +117,9 @@ export default function PerfilPage() {
   }
 
   const rol = perfil?.rol ?? '';
-  const esVendedor = rol.includes('vendedor') || rol === 'admin';
-  const esComprador = rol.includes('comprador') || rol === 'admin';
+  const roles = perfil?.roles ?? (rol ? [rol] : []);
+  const esVendedor = roles.includes('vendedor') || roles.includes('administrador');
+  const esComprador = roles.includes('comprador') || roles.includes('administrador');
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
@@ -116,9 +130,7 @@ export default function PerfilPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Mi perfil</h1>
-              <span className="inline-block mt-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full px-2.5 py-0.5">
-                {ROL_LABEL[rol] ?? rol}
-              </span>
+              <RolBadge roles={perfil?.roles ?? (perfil?.rol ? [perfil.rol] : [])} />
             </div>
             {!editando && (
               <button
@@ -143,20 +155,37 @@ export default function PerfilPage() {
 
           {editando ? (
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                <input
-                  type="text"
-                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.nombre ? 'border-red-400' : 'border-gray-300'
-                  }`}
-                  {...register('nombre', {
-                    required: 'El nombre es obligatorio.',
-                    minLength: { value: 2, message: 'Mínimo 2 caracteres.' },
-                    maxLength: { value: 100, message: 'Máximo 100 caracteres.' },
-                  })}
-                />
-                {errors.nombre && <p className="text-xs text-red-500 mt-1">{errors.nombre.message}</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                  <input
+                    type="text"
+                    className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.nombre ? 'border-red-400' : 'border-gray-300'
+                    }`}
+                    {...register('nombre', {
+                      required: 'El nombre es obligatorio.',
+                      minLength: { value: 2, message: 'Mínimo 2 caracteres.' },
+                      maxLength: { value: 100, message: 'Máximo 100 caracteres.' },
+                    })}
+                  />
+                  {errors.nombre && <p className="text-xs text-red-500 mt-1">{errors.nombre.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+                  <input
+                    type="text"
+                    className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.apellido ? 'border-red-400' : 'border-gray-300'
+                    }`}
+                    {...register('apellido', {
+                      required: 'El apellido es obligatorio.',
+                      minLength: { value: 2, message: 'Mínimo 2 caracteres.' },
+                      maxLength: { value: 100, message: 'Máximo 100 caracteres.' },
+                    })}
+                  />
+                  {errors.apellido && <p className="text-xs text-red-500 mt-1">{errors.apellido.message}</p>}
+                </div>
               </div>
 
               <div>
@@ -184,7 +213,7 @@ export default function PerfilPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setEditando(false); setServerError(''); reset({ nombre: perfil.nombre, telefono: perfil.telefono ?? '' }); }}
+                  onClick={() => { setEditando(false); setServerError(''); reset({ nombre: perfil.nombre, apellido: perfil.apellido ?? '', telefono: perfil.telefono ?? '' }); }}
                   className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                 >
                   Cancelar
@@ -195,7 +224,7 @@ export default function PerfilPage() {
             <dl className="space-y-3 text-sm">
               <div className="flex gap-2">
                 <dt className="w-28 text-gray-500 shrink-0">Nombre</dt>
-                <dd className="text-gray-800 font-medium">{perfil.nombre}</dd>
+                <dd className="text-gray-800 font-medium">{perfil.nombre} {perfil.apellido}</dd>
               </div>
               <div className="flex gap-2">
                 <dt className="w-28 text-gray-500 shrink-0">Correo</dt>
@@ -208,7 +237,7 @@ export default function PerfilPage() {
               <div className="flex gap-2">
                 <dt className="w-28 text-gray-500 shrink-0">Miembro desde</dt>
                 <dd className="text-gray-800">
-                  {new Date(perfil.creado_en).toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {new Date(perfil.fecha_registro ?? perfil.creado_en).toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </dd>
               </div>
             </dl>

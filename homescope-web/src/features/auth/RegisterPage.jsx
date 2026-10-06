@@ -12,12 +12,13 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { rol: 'comprador' } });
+  } = useForm({ defaultValues: { roles: ['comprador'] } });
 
   async function onSubmit(data) {
     setServerError('');
     try {
-      await registro(data);
+      // roles viene como string del radio; convertir a array
+      await registro({ ...data, roles: [data.roles] });
       setSuccess(true);
     } catch (err) {
       setServerError(err?.message ?? 'Error al registrar. Intenta de nuevo.');
@@ -61,26 +62,48 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-          {/* Nombre */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre completo <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.nombre ? 'border-red-400' : 'border-gray-300'
-              }`}
-              placeholder="María López"
-              {...register('nombre', {
-                required: 'El nombre es obligatorio.',
-                minLength: { value: 2, message: 'Mínimo 2 caracteres.' },
-                maxLength: { value: 100, message: 'Máximo 100 caracteres.' },
-              })}
-            />
-            {errors.nombre && (
-              <p className="text-xs text-red-500 mt-1">{errors.nombre.message}</p>
-            )}
+          {/* Nombre + Apellido */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.nombre ? 'border-red-400' : 'border-gray-300'
+                }`}
+                placeholder="María"
+                {...register('nombre', {
+                  required: 'Obligatorio.',
+                  minLength: { value: 2, message: 'Mínimo 2 caracteres.' },
+                  maxLength: { value: 100, message: 'Máximo 100 caracteres.' },
+                })}
+              />
+              {errors.nombre && (
+                <p className="text-xs text-red-500 mt-1">{errors.nombre.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Apellido <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.apellido ? 'border-red-400' : 'border-gray-300'
+                }`}
+                placeholder="López"
+                {...register('apellido', {
+                  required: 'Obligatorio.',
+                  minLength: { value: 2, message: 'Mínimo 2 caracteres.' },
+                  maxLength: { value: 100, message: 'Máximo 100 caracteres.' },
+                })}
+              />
+              {errors.apellido && (
+                <p className="text-xs text-red-500 mt-1">{errors.apellido.message}</p>
+              )}
+            </div>
           </div>
 
           {/* Email */}
@@ -176,7 +199,7 @@ export default function RegisterPage() {
                     type="radio"
                     value={value}
                     className="sr-only"
-                    {...register('rol')}
+                    {...register('roles')}
                   />
                   <span className="text-sm font-medium text-gray-800 text-center">{label}</span>
                   <span className="text-xs text-gray-500 mt-0.5">{desc}</span>
