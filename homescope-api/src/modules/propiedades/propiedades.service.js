@@ -15,7 +15,7 @@ export class PropiedadesService {
   async getById(propiedadId, solicitanteId = null) {
     const propiedad = await repo.buscarPorId(propiedadId);
     if (!propiedad) throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
-    if (propiedad.estado !== 'publicada' && propiedad.vendedor.id !== solicitanteId)
+    if (propiedad.estado !== 'publicado' && propiedad.vendedor.id !== solicitanteId)
       throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
 
     const { vendedor, ...resto } = propiedad;
@@ -44,12 +44,12 @@ export class PropiedadesService {
     return repo.listarVistas(usuarioId);
   }
 
-  async registrarVista(propiedadId, usuarioId) {
+  async registrarVista(propiedadId, usuarioId, origen = 'catalogo') {
     const propiedad = await repo.buscarPorId(propiedadId);
-    if (!propiedad || propiedad.estado !== 'publicada') return;
+    if (!propiedad || propiedad.estado !== 'publicado') return;
     // No registrar vista del propio vendedor
     if (propiedad.vendedor.id === usuarioId) return;
-    await repo.registrarVista(usuarioId, propiedadId);
+    await repo.registrarVista(usuarioId, propiedadId, origen);
   }
 
   async crear(datos) {
