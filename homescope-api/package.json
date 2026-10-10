@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "node --loader ts-node/esm prisma/seed.ts",
+    "db:seed:prueba": "node prisma/seed-prueba.js",
     "db:studio": "prisma studio",
     "test": "jest"
   },
