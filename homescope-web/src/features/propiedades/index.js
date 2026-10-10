@@ -1,2 +1,1 @@
-// TODO: Implementar feature propiedades
-// Páginas: Catalogo, FichaPropiedad, FormularioPropiedad (pasos), GestionPropiedades
+export { default as PublicarPropiedadPage } from './pages/PublicarPropiedadPage';

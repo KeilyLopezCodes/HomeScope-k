@@ -52,10 +52,9 @@ function HistorialSection({ titulo, items, vacio }) {
 }
 
 export default function PerfilPage() {
-  const { user, updateUser } = useAuth();
+  const { user, loading: authLoading, updateUser } = useAuth();
   const [perfil, setPerfil] = useState(null);
   const [historial, setHistorial] = useState({ publicadas: [], guardadas: [], vistas: [] });
-  const [loadingPerfil, setLoadingPerfil] = useState(true);
   const [editando, setEditando] = useState(false);
   const [serverError, setServerError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -67,14 +66,20 @@ export default function PerfilPage() {
     formState: { errors, isSubmitting },
   } = useForm();
 
+  // Esperar a que el contexto termine de restaurar la sesión antes de llamar a la API
   useEffect(() => {
+    if (authLoading || !user) return;
     getPerfil()
       .then((data) => {
         setPerfil(data);
         reset({ nombre: data.nombre, apellido: data.apellido ?? '', telefono: data.telefono ?? '' });
       })
-      .finally(() => setLoadingPerfil(false));
-  }, [reset]);
+      .catch(() => {
+        // Si la API falla usar los datos del contexto como fallback
+        setPerfil(user);
+        reset({ nombre: user.nombre ?? '', apellido: '', telefono: '' });
+      });
+  }, [authLoading, user, reset]);
 
   useEffect(() => {
     if (!perfil) return;
@@ -108,7 +113,7 @@ export default function PerfilPage() {
     }
   }
 
-  if (loadingPerfil) {
+  if (authLoading || !perfil) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-sm text-gray-400">Cargando perfil…</p>

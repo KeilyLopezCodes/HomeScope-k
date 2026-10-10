@@ -6,8 +6,6 @@ import { useAuth } from './authContext';
 
 const ROLE_REDIRECT = {
   admin: '/admin',
-  vendedor: '/propiedades/nueva',
-  comprador: '/propiedades',
 };
 
 export default function LoginPage() {
@@ -27,7 +25,7 @@ export default function LoginPage() {
     try {
       const res = await login(data);
       signIn(res.accessToken, res.usuario);
-      const from = location.state?.from ?? ROLE_REDIRECT[res.usuario?.rol] ?? '/propiedades';
+      const from = location.state?.from ?? (res.usuario?.rol === 'admin' ? '/admin' : '/propiedades');
       navigate(from, { replace: true });
     } catch (err) {
       setServerError(err?.message ?? 'Credenciales incorrectas. Intenta de nuevo.');
