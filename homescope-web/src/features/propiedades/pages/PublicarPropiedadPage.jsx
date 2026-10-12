@@ -7,10 +7,10 @@ import StepFotos        from '../components/StepFotos';
 import StepUbicacion    from '../components/StepUbicacion';
 import StepConfirmacion from '../components/StepConfirmacion';
 import { useBorradorPropiedad } from '../hooks/useBorradorPropiedad';
-import { Button, Card } from '../../../shared/components/ui';
+import { apiClient } from '../../../shared/api/client';
 import { useToast } from '../../../shared/components/ui';
+import { Button, Card } from '../../../shared/components/ui';
 
-// Campos obligatorios que se validan al avanzar en cada paso
 const FIELDS_PER_STEP = [
   ['titulo', 'tipo_propiedad_id', 'modalidad', 'precio', 'moneda', 'descripcion'],
   ['fotos'],
@@ -19,12 +19,12 @@ const FIELDS_PER_STEP = [
 ];
 
 export default function PublicarPropiedadPage() {
-  const [step, setStep]                   = useState(0);
-  const [borradorGuardado, setBorrador]   = useState(false);
-  const [enviando, setEnviando]           = useState(false);
-  const { guardar, cargar, limpiar }      = useBorradorPropiedad();
-  const navigate                          = useNavigate();
-  const toast                             = useToast();
+  const [step, setStep]         = useState(0);
+  const [borradorGuardado, setBorrador] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const { guardar, cargar, limpiar } = useBorradorPropiedad();
+  const navigate = useNavigate();
+  const toast    = useToast();
 
   const {
     register, handleSubmit, trigger,
@@ -55,17 +55,29 @@ export default function PublicarPropiedadPage() {
   function handleGuardarBorrador() {
     guardar({ ...getValues(), paso_formulario: step + 1 });
     setBorrador(true);
-    toast('Borrador guardado correctamente', 'success');
+    toast('Borrador guardado', 'success');
   }
 
   async function onSubmit(data) {
     setEnviando(true);
     try {
-      // TODO: apiClient('/api/v1/propiedades', { method: 'POST', body: JSON.stringify(data) })
-      console.log('Publicar propiedad:', data);
+      // Excluir fotos (se suben por separado con Cloudinary)
+      const { fotos, ...campos } = data;
+
+      // 1. Crear la propiedad como borrador
+      const nueva = await apiClient('/api/v1/propiedades', {
+        method: 'POST',
+        body: JSON.stringify({ ...campos, paso_formulario: 4 }),
+      });
+
+      // 2. Publicar inmediatamente (borrador → publicado)
+      await apiClient(`/api/v1/propiedades/${nueva.id}/publicar`, {
+        method: 'POST',
+      });
+
       limpiar();
       toast('Propiedad publicada correctamente', 'success');
-      navigate('/propiedades');
+      navigate('/mis-propiedades');
     } catch (err) {
       toast(err?.message ?? 'Error al publicar la propiedad', 'error');
     } finally {
@@ -79,7 +91,6 @@ export default function PublicarPropiedadPage() {
     <div className="min-h-screen bg-secondary-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
 
-        {/* Encabezado */}
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-xl font-bold text-secondary-900">Publicar propiedad</h1>
           {borradorGuardado && (
@@ -106,14 +117,8 @@ export default function PublicarPropiedadPage() {
             {step === 3 && <StepConfirmacion getValues={getValues} />}
           </Card>
 
-          {/* Navegación */}
           <div className="mt-6 flex items-center justify-between gap-3">
-            <Button
-              type="button"
-              variant="text"
-              size="sm"
-              onClick={handleGuardarBorrador}
-            >
+            <Button type="button" variant="text" size="sm" onClick={handleGuardarBorrador}>
               Guardar borrador
             </Button>
 
@@ -123,7 +128,6 @@ export default function PublicarPropiedadPage() {
                   Atrás
                 </Button>
               )}
-
               {!isLast ? (
                 <Button type="button" variant="primary" onClick={handleNext}>
                   Siguiente

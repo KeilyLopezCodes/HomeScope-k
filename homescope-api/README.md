@@ -39,3 +39,7 @@ src/
 ```
 
 Todas las rutas bajo `/api/v1`. Health check en `GET /health`.
+
+para crear un usuario con rol vendedor
+cd homescope-api && npm run db:studio
+

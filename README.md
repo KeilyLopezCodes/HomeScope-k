@@ -150,6 +150,17 @@ Rutas disponibles en esta etapa base:
 | `/agenda` | Agenda |
 | `/admin` | Panel de administración |
 
+### Backend — Swagger UI
+
+Abrir **http://localhost:3000/api/docs** en el navegador.
+
+Desde ahí puedes probar todos los endpoints directamente. Para los endpoints protegidos:
+1. Ejecuta `POST /auth/login` y copia el `accessToken` de la respuesta.
+2. Haz clic en el botón **Authorize** (candado) en la parte superior.
+3. Pega el token y haz clic en **Authorize**.
+
+La spec en formato JSON está disponible en **http://localhost:3000/api/docs.json**.
+
 ### Backend — Health check
 
 Abrir **http://localhost:3000/health** en el navegador o ejecutar:
