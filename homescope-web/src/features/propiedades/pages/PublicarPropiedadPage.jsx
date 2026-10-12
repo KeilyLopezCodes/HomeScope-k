@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import StepIndicator from '../components/StepIndicator';
+import StepIndicator    from '../components/StepIndicator';
 import StepDatosGenerales from '../components/StepDatosGenerales';
-import StepFotos from '../components/StepFotos';
-import StepUbicacion from '../components/StepUbicacion';
+import StepFotos        from '../components/StepFotos';
+import StepUbicacion    from '../components/StepUbicacion';
 import StepConfirmacion from '../components/StepConfirmacion';
 import { useBorradorPropiedad } from '../hooks/useBorradorPropiedad';
+import { Button, Card } from '../../../shared/components/ui';
+import { useToast } from '../../../shared/components/ui';
 
+// Campos obligatorios que se validan al avanzar en cada paso
 const FIELDS_PER_STEP = [
   ['titulo', 'tipo_propiedad_id', 'modalidad', 'precio', 'moneda', 'descripcion'],
   ['fotos'],
@@ -16,29 +19,27 @@ const FIELDS_PER_STEP = [
 ];
 
 export default function PublicarPropiedadPage() {
-  const [step, setStep] = useState(0);
-  const [borradorGuardado, setBorradorGuardado] = useState(false);
-  const [enviando, setEnviando] = useState(false);
-  const { guardar, cargar, limpiar } = useBorradorPropiedad();
-  const navigate = useNavigate();
+  const [step, setStep]                   = useState(0);
+  const [borradorGuardado, setBorrador]   = useState(false);
+  const [enviando, setEnviando]           = useState(false);
+  const { guardar, cargar, limpiar }      = useBorradorPropiedad();
+  const navigate                          = useNavigate();
+  const toast                             = useToast();
 
   const {
-    register,
-    handleSubmit,
-    trigger,
-    setValue,
-    getValues,
-    reset,
+    register, handleSubmit, trigger,
+    setValue, getValues, reset,
     formState: { errors },
   } = useForm({ mode: 'onTouched' });
 
-  // Cargar borrador al montar
+  // Restaurar borrador al montar
   useEffect(() => {
     const borrador = cargar();
     if (borrador) {
-      const { _savedAt, ...data } = borrador;
+      const { _savedAt, paso_formulario, ...data } = borrador;
       reset(data);
-      setBorradorGuardado(true);
+      if (paso_formulario) setStep(Math.min(paso_formulario - 1, 3));
+      setBorrador(true);
     }
   }, []);
 
@@ -53,18 +54,20 @@ export default function PublicarPropiedadPage() {
 
   function handleGuardarBorrador() {
     guardar({ ...getValues(), paso_formulario: step + 1 });
-    setBorradorGuardado(true);
+    setBorrador(true);
+    toast('Borrador guardado correctamente', 'success');
   }
 
   async function onSubmit(data) {
     setEnviando(true);
     try {
-      // TODO: llamar apiClient('/api/v1/propiedades', { method: 'POST', body: JSON.stringify(data) })
+      // TODO: apiClient('/api/v1/propiedades', { method: 'POST', body: JSON.stringify(data) })
       console.log('Publicar propiedad:', data);
       limpiar();
+      toast('Propiedad publicada correctamente', 'success');
       navigate('/propiedades');
     } catch (err) {
-      console.error(err);
+      toast(err?.message ?? 'Error al publicar la propiedad', 'error');
     } finally {
       setEnviando(false);
     }
@@ -73,12 +76,14 @@ export default function PublicarPropiedadPage() {
   const isLast = step === 3;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-secondary-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
+
+        {/* Encabezado */}
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">Publicar propiedad</h1>
+          <h1 className="text-xl font-bold text-secondary-900">Publicar propiedad</h1>
           {borradorGuardado && (
-            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+            <span className="text-xs text-success-700 bg-success-50 border border-success-200 px-2 py-1 rounded-full">
               Borrador guardado
             </span>
           )}
@@ -86,50 +91,47 @@ export default function PublicarPropiedadPage() {
 
         <StepIndicator current={step} />
 
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <Card className="p-6">
             {step === 0 && <StepDatosGenerales register={register} errors={errors} />}
-            {step === 1 && <StepFotos register={register} errors={errors} setValue={setValue} getValues={getValues} />}
+            {step === 1 && (
+              <StepFotos
+                register={register}
+                errors={errors}
+                setValue={setValue}
+                getValues={getValues}
+              />
+            )}
             {step === 2 && <StepUbicacion register={register} errors={errors} />}
             {step === 3 && <StepConfirmacion getValues={getValues} />}
-          </div>
+          </Card>
 
+          {/* Navegación */}
           <div className="mt-6 flex items-center justify-between gap-3">
-            <button
+            <Button
               type="button"
+              variant="text"
+              size="sm"
               onClick={handleGuardarBorrador}
-              className="text-sm text-gray-500 hover:text-emerald-600 underline underline-offset-2 transition-colors"
             >
               Guardar borrador
-            </button>
+            </Button>
 
             <div className="flex gap-3">
               {step > 0 && (
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
+                <Button type="button" variant="secondary" onClick={handleBack}>
                   Atrás
-                </button>
+                </Button>
               )}
 
               {!isLast ? (
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="px-5 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
-                >
+                <Button type="button" variant="primary" onClick={handleNext}>
                   Siguiente
-                </button>
+                </Button>
               ) : (
-                <button
-                  type="submit"
-                  disabled={enviando}
-                  className="px-5 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50"
-                >
-                  {enviando ? 'Publicando…' : 'Publicar propiedad'}
-                </button>
+                <Button type="submit" variant="primary" loading={enviando}>
+                  Publicar propiedad
+                </Button>
               )}
             </div>
           </div>
