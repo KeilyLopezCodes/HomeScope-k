@@ -6,6 +6,7 @@ import MainLayout from '../shared/components/MainLayout';
 import ComingSoonPage from '../shared/pages/ComingSoonPage';
 import NotFoundPage from '../shared/pages/NotFoundPage';
 import ForbiddenPage from '../shared/pages/ForbiddenPage';
+import ComponentesPage from '../shared/pages/dev/ComponentesPage';
 
 // Redirige a /login si no hay sesión; conserva la ruta de origen en location.state.from
 function ProtectedRoute({ children }) {
@@ -113,6 +114,11 @@ export default function App() {
             </PermissionRoute>
           </ProtectedRoute>
         } />
+
+        {/* Dev — solo en desarrollo */}
+        {import.meta.env.DEV && (
+          <Route path="/dev/componentes" element={<MainLayout><ComponentesPage /></MainLayout>} />
+        )}
 
         {/* 404 */}
         <Route path="*" element={<MainLayout><NotFoundPage /></MainLayout>} />
