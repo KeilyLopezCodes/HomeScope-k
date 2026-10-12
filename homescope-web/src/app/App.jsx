@@ -7,7 +7,8 @@ import ComingSoonPage from '../shared/pages/ComingSoonPage';
 import NotFoundPage from '../shared/pages/NotFoundPage';
 import ForbiddenPage from '../shared/pages/ForbiddenPage';
 
-function ProtectedRoute({ children, roles }) {
+// Redirige a /login si no hay sesión; conserva la ruta de origen en location.state.from
+function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   if (loading) return (
@@ -16,23 +17,19 @@ function ProtectedRoute({ children, roles }) {
     </div>
   );
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  if (roles && !roles.some(r => r.toLowerCase() === user.rol?.toLowerCase())) {
-    return <Navigate to="/403" replace />;
-  }
   return children;
 }
 
-/* Rutas de auth sin layout (pantalla completa) */
-function AuthRoutes() {
-  return (
-    <Routes>
-      <Route path="/login"            element={<LoginPage />} />
-      <Route path="/registro"         element={<RegisterPage />} />
-      <Route path="/recuperar"        element={<ForgotPasswordPage />} />
-      <Route path="/recuperar/:token" element={<ResetPasswordPage />} />
-      <Route path="/verificar-correo" element={<VerificarCorreoPage />} />
-    </Routes>
+// Muestra /403 si el usuario no tiene el permiso requerido (códigos de la matriz de roles)
+function PermissionRoute({ children, permiso }) {
+  const { tienePermiso, loading } = useAuth();
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <span className="text-gray-400 text-sm">Cargando…</span>
+    </div>
   );
+  if (permiso && !tienePermiso(permiso)) return <Navigate to="/403" replace />;
+  return children;
 }
 
 export default function App() {
@@ -40,71 +37,80 @@ export default function App() {
     <AuthProvider>
       <Routes>
         {/* Auth — sin layout */}
-        <Route path="/login"            element={<LoginPage />} />
-        <Route path="/registro"         element={<RegisterPage />} />
-        <Route path="/recuperar"        element={<ForgotPasswordPage />} />
-        <Route path="/recuperar/:token" element={<ResetPasswordPage />} />
-        <Route path="/verificar-correo" element={<VerificarCorreoPage />} />
+        <Route path="/login"                    element={<LoginPage />} />
+        <Route path="/registro"                 element={<RegisterPage />} />
+        <Route path="/recuperar-contrasena"     element={<ForgotPasswordPage />} />
+        <Route path="/recuperar-contrasena/:token" element={<ResetPasswordPage />} />
+        {/* alias legacy */}
+        <Route path="/recuperar"                element={<Navigate to="/recuperar-contrasena" replace />} />
+        <Route path="/recuperar/:token"         element={<Navigate to="/recuperar-contrasena/:token" replace />} />
+        <Route path="/verificar-correo"         element={<VerificarCorreoPage />} />
 
-        {/* Páginas de error — con layout */}
+        {/* Páginas de error */}
         <Route path="/403" element={<MainLayout><ForbiddenPage /></MainLayout>} />
 
         {/* Raíz */}
         <Route path="/" element={<Navigate to="/propiedades" replace />} />
 
-        {/* Rutas con layout */}
-        <Route path="/propiedades" element={
-          <MainLayout><ComingSoonPage /></MainLayout>
-        } />
-        <Route path="/propiedades/:id" element={
-          <MainLayout><ComingSoonPage /></MainLayout>
-        } />
-        <Route path="/propiedades/nueva" element={
-          <ProtectedRoute roles={['vendedor', 'seller', 'admin', 'administrador']}>
-            <MainLayout><PublicarPropiedadPage /></MainLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/mapa" element={
-          <MainLayout><ComingSoonPage /></MainLayout>
+        {/* Públicas */}
+        <Route path="/propiedades"      element={<MainLayout><ComingSoonPage /></MainLayout>} />
+        <Route path="/propiedades/:id" element={<MainLayout><ComingSoonPage /></MainLayout>} />
+        <Route path="/mapa"             element={<MainLayout><ComingSoonPage /></MainLayout>} />
+
+        {/* Protegidas — cualquier usuario autenticado */}
+        <Route path="/perfil" element={
+          <ProtectedRoute><MainLayout><PerfilPage /></MainLayout></ProtectedRoute>
         } />
         <Route path="/favoritos" element={
-          <ProtectedRoute>
-            <MainLayout><ComingSoonPage /></MainLayout>
-          </ProtectedRoute>
+          <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
+        } />
+        <Route path="/comparar" element={
+          <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
         } />
         <Route path="/mensajes" element={
+          <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
+        } />
+        <Route path="/visitas" element={
+          <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
+        } />
+
+        {/* Protegidas — requieren permiso específico */}
+        <Route path="/publicar" element={
           <ProtectedRoute>
-            <MainLayout><ComingSoonPage /></MainLayout>
+            <PermissionRoute permiso="propiedad.crear">
+              <MainLayout><PublicarPropiedadPage /></MainLayout>
+            </PermissionRoute>
           </ProtectedRoute>
         } />
-        <Route path="/mis-visitas" element={
-          <ProtectedRoute>
-            <MainLayout><ComingSoonPage /></MainLayout>
-          </ProtectedRoute>
-        } />
+        {/* alias legacy */}
+        <Route path="/propiedades/nueva" element={<Navigate to="/publicar" replace />} />
+
         <Route path="/mis-propiedades" element={
           <ProtectedRoute>
-            <MainLayout><ComingSoonPage /></MainLayout>
+            <PermissionRoute permiso="propiedad.listar_propias">
+              <MainLayout><ComingSoonPage /></MainLayout>
+            </PermissionRoute>
+          </ProtectedRoute>
+        } />
+        <Route path="/mis-propiedades/:id/editar" element={
+          <ProtectedRoute>
+            <PermissionRoute permiso="propiedad.editar">
+              <MainLayout><ComingSoonPage /></MainLayout>
+            </PermissionRoute>
           </ProtectedRoute>
         } />
         <Route path="/panel-vendedor" element={
           <ProtectedRoute>
-            <MainLayout><ComingSoonPage /></MainLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/agenda" element={
-          <ProtectedRoute>
-            <MainLayout><ComingSoonPage /></MainLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/perfil" element={
-          <ProtectedRoute>
-            <MainLayout><PerfilPage /></MainLayout>
+            <PermissionRoute permiso="propiedad.listar_propias">
+              <MainLayout><ComingSoonPage /></MainLayout>
+            </PermissionRoute>
           </ProtectedRoute>
         } />
         <Route path="/admin/*" element={
-          <ProtectedRoute roles={['admin', 'administrador']}>
-            <MainLayout><ComingSoonPage /></MainLayout>
+          <ProtectedRoute>
+            <PermissionRoute permiso="admin.acceso">
+              <MainLayout><ComingSoonPage /></MainLayout>
+            </PermissionRoute>
           </ProtectedRoute>
         } />
 
