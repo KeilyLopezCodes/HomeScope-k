@@ -50,7 +50,7 @@ export async function refresh(req, res, next) {
 
 export async function logout(req, res, next) {
   try {
-    await service.logout(req.user.sub);
+    await service.logout(req.cookies?.refreshToken);
     res.clearCookie('refreshToken', COOKIE_OPTS);
     res.json({ message: 'Sesión cerrada.' });
   } catch (err) { next(err); }

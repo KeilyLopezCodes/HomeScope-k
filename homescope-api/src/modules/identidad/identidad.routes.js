@@ -192,19 +192,12 @@ router.post('/refresh', controller.refresh);
  *   post:
  *     tags: [Identidad]
  *     summary: Cerrar sesión
- *     description: Revoca todos los refresh tokens activos del usuario y limpia la cookie.
- *     security:
- *       - bearerAuth: []
+ *     description: Revoca todos los refresh tokens activos del usuario (identificado por la cookie `refreshToken`) y limpia la cookie. No requiere access token; si no hay cookie válida igual responde 200.
  *     responses:
  *       200:
  *         description: Sesión cerrada correctamente.
- *       401:
- *         description: Token requerido o inválido.
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/logout', authenticate, controller.logout);
+router.post('/logout', controller.logout);
 
 /**
  * @openapi

@@ -11,16 +11,20 @@ export function AuthProvider({ children }) {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    // Si no hay user en sessionStorage, necesitamos verificar con el backend
+    try { return !sessionStorage.getItem(SESSION_KEY); }
+    catch { return true; }
+  });
   const refreshed = useRef(false);
+  // Evita que una restauración en curso vuelva a iniciar sesión tras un signOut
+  const sesionCerrada = useRef(false);
 
   useEffect(() => {
     // StrictMode monta dos veces en dev — el ref evita doble refresh
-    if (refreshed.current) { setLoading(false); return; }
+    if (refreshed.current) return;
     refreshed.current = true;
 
-    // Si ya hay user en sessionStorage el accessToken se perdió (nueva pestaña/recarga)
-    // pero podemos recuperarlo con el refresh token de la cookie
     async function restaurarSesion() {
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/refresh`, {
@@ -28,15 +32,19 @@ export function AuthProvider({ children }) {
           credentials: 'include',
         });
         if (!res.ok) {
-          // Cookie expirada o inexistente — limpiar sesión
+          // Cookie inválida — forzar logout aunque sessionStorage tenga datos
           sessionStorage.removeItem(SESSION_KEY);
           setUser(null);
+          setLoading(false);
           return;
         }
         const data = await res.json();
-        if (!data?.accessToken) return;
+        if (sesionCerrada.current) return;
+        if (!data?.accessToken) { setLoading(false); return; }
         setAccessToken(data.accessToken);
+        // Actualizar datos del perfil desde el backend
         const perfil = await apiClient('/api/v1/auth/perfil');
+        if (sesionCerrada.current) return;
         const u = { id: perfil.id, nombre: perfil.nombre, email: perfil.email, rol: perfil.rol };
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(u));
         setUser(u);
@@ -51,16 +59,27 @@ export function AuthProvider({ children }) {
   }, []);
 
   function signIn(accessToken, usuario) {
+    sesionCerrada.current = false;
     setAccessToken(accessToken);
     const u = { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(u));
     setUser(u);
   }
 
-  function signOut() {
+  async function signOut() {
+    // Limpiar estado local primero para que la UI refleje el cierre de inmediato
+    sesionCerrada.current = true;
     setAccessToken(null);
     sessionStorage.removeItem(SESSION_KEY);
     setUser(null);
+    setLoading(false);
+    // Revocar el refresh token y borrar la cookie; si no, al recargar se restaura la sesión
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch { /* sin red: el estado local ya quedó limpio */ }
   }
 
   function updateUser(parcial) {

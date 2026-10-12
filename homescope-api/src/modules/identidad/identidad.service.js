@@ -186,8 +186,17 @@ export class IdentidadService {
     return { accessToken, refreshToken: refreshNuevo, recordar };
   }
 
-  async logout(usuarioId) {
-    await repo.revocarTokensDeUsuario(usuarioId, 'refresh');
+  // Identifica al usuario por el refresh token de la cookie (no requiere access token).
+  // Idempotente: si no hay token o es inválido, no hay nada que revocar.
+  async logout(tokenPlano) {
+    if (!tokenPlano) return;
+    let payload;
+    try {
+      payload = jwt.verify(tokenPlano, env.JWT_REFRESH_SECRET, { ignoreExpiration: true });
+    } catch {
+      return;
+    }
+    await repo.revocarTokensDeUsuario(payload.sub, 'refresh');
   }
 
   async solicitarRecuperacion(email) {
