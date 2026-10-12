@@ -189,10 +189,252 @@ router.get('/:id', optionalAuth, controller.getById);
  */
 router.post('/:id/vista', authenticate, controller.registrarVista);
 
-router.post('/',                    authenticate, requirePermission('propiedad.publicar'), controller.crear);
-router.put('/:id',                  authenticate, controller.actualizar);
-router.delete('/:id',               authenticate, controller.eliminar);
-router.post('/:id/publicar',        authenticate, requirePermission('propiedad.publicar'), controller.publicar);
+/**
+ * @openapi
+ * /propiedades:
+ *   post:
+ *     tags: [Propiedades]
+ *     summary: Crear propiedad (borrador)
+ *     description: Crea la propiedad con estado `borrador`. Requiere permiso `propiedad.crear`.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [tipo_propiedad_id, titulo, modalidad, precio, moneda, direccion]
+ *             properties:
+ *               tipo_propiedad_id: { type: integer,  example: 1 }
+ *               titulo:            { type: string,   example: "Casa amplia en zona residencial" }
+ *               descripcion:       { type: string,   example: "Descripción detallada de la propiedad" }
+ *               modalidad:         { type: string,   enum: [venta, alquiler] }
+ *               precio:            { type: number,   example: 350000 }
+ *               moneda:            { type: string,   enum: [GTQ, USD] }
+ *               habitaciones:      { type: integer,  example: 3 }
+ *               banos:             { type: number,   example: 2.5 }
+ *               area_m2:           { type: number,   example: 120.5 }
+ *               parqueos:          { type: integer,  example: 1 }
+ *               direccion:         { type: string,   example: "5a Calle 10-20 Zona 1" }
+ *               zona:              { type: string,   example: "Zona 1" }
+ *               municipio:         { type: string,   example: "Jalapa" }
+ *               departamento:      { type: string,   example: "Jalapa" }
+ *               latitud:           { type: number,   example: 14.6349 }
+ *               longitud:          { type: number,   example: -89.9836 }
+ *               paso_formulario:   { type: integer,  minimum: 1, maximum: 4, example: 1 }
+ *     responses:
+ *       201:
+ *         description: Propiedad creada como borrador.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:             { type: integer }
+ *                 titulo:         { type: string }
+ *                 estado:         { type: string, example: borrador }
+ *                 fecha_creacion: { type: string, format: date-time }
+ *       401:
+ *         description: Token requerido.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       403:
+ *         description: Sin permiso.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       422:
+ *         description: Datos inválidos.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.post('/', authenticate, requirePermission('propiedad.crear'), controller.crear);
+
+/**
+ * @openapi
+ * /propiedades/{id}:
+ *   put:
+ *     tags: [Propiedades]
+ *     summary: Editar propiedad (solo el dueño)
+ *     description: |
+ *       Actualiza cualquier subconjunto de campos. Solo el vendedor dueño puede editar.
+ *       Si cambia el precio, se registra automáticamente en `historial_precio`.
+ *       No se puede editar una propiedad con estado `vendido` o `alquilado`.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: Cualquier subconjunto de campos editables (al menos uno).
+ *             properties:
+ *               titulo:       { type: string }
+ *               descripcion:  { type: string }
+ *               precio:       { type: number }
+ *               moneda:       { type: string, enum: [GTQ, USD] }
+ *               habitaciones: { type: integer }
+ *               banos:        { type: number }
+ *               area_m2:      { type: number }
+ *               parqueos:     { type: integer }
+ *               direccion:    { type: string }
+ *               zona:         { type: string }
+ *               municipio:    { type: string }
+ *               departamento: { type: string }
+ *     responses:
+ *       200:
+ *         description: Propiedad actualizada.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:                  { type: integer }
+ *                 titulo:              { type: string }
+ *                 estado:              { type: string }
+ *                 fecha_actualizacion: { type: string, format: date-time }
+ *       403:
+ *         description: No eres el dueño de esta propiedad.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       422:
+ *         description: Estado no permite edición o datos inválidos.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.put('/:id', authenticate, controller.actualizar);
+
+/**
+ * @openapi
+ * /propiedades/{id}:
+ *   delete:
+ *     tags: [Propiedades]
+ *     summary: Eliminar propiedad (solo el dueño)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       204:
+ *         description: Propiedad eliminada correctamente.
+ *       403:
+ *         description: No eres el dueño de esta propiedad.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       404:
+ *         description: Propiedad no encontrada.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.delete('/:id', authenticate, controller.eliminar);
+
+/**
+ * @openapi
+ * /propiedades/{id}/publicar:
+ *   post:
+ *     tags: [Propiedades]
+ *     summary: Publicar propiedad (borrador → publicado)
+ *     description: Transición de estado `borrador` a `publicado`. Solo el dueño.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Propiedad publicada.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:     { type: integer }
+ *                 estado: { type: string, example: publicado }
+ *       403:
+ *         description: No eres el dueño.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       422:
+ *         description: Transición no permitida desde el estado actual.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.post('/:id/publicar', authenticate, requirePermission('propiedad.crear'), controller.publicar);
+
+/**
+ * @openapi
+ * /propiedades/{id}/estado:
+ *   patch:
+ *     tags: [Propiedades]
+ *     summary: Cambiar estado de la propiedad (solo el dueño)
+ *     description: |
+ *       Transiciones permitidas:
+ *       - `borrador` → `publicado`
+ *       - `publicado` → `pausado`, `vendido`, `alquilado`
+ *       - `pausado` → `publicado`, `vendido`, `alquilado`
+ *       - `vendido` y `alquilado` son estados finales (sin transición posible).
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [estado]
+ *             properties:
+ *               estado:
+ *                 type: string
+ *                 enum: [publicado, pausado, vendido, alquilado]
+ *                 example: pausado
+ *     responses:
+ *       200:
+ *         description: Estado actualizado correctamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:     { type: integer }
+ *                 estado: { type: string }
+ *       403:
+ *         description: No eres el dueño.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       422:
+ *         description: Transición de estado no permitida.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.patch('/:id/estado', authenticate, controller.cambiarEstado);
+
 router.post('/:id/fotos',           authenticate, controller.agregarFoto);
 router.delete('/:id/fotos/:fotoId', authenticate, controller.eliminarFoto);
 
