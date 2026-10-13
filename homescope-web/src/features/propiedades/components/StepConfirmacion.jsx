@@ -15,6 +15,7 @@ function Row({ label, value }) {
 export default function StepConfirmacion({ getValues }) {
   const v = getValues();
   const fotos = v.fotos ?? [];
+  const portada = fotos.find((f) => f.key === v.fotoPortada) ?? fotos[0];
 
   return (
     <div className="space-y-4">
@@ -52,9 +53,17 @@ export default function StepConfirmacion({ getValues }) {
       {fotos.length > 0 && (
         <div>
           <p className="text-sm text-secondary-500 mb-2">{fotos.length} foto(s)</p>
+          {portada && (
+            <div className="relative mb-2">
+              <img src={portada.preview} alt="Foto de portada" className="w-full h-48 object-cover rounded" />
+              <span className="absolute top-2 left-2 bg-primary-600 text-white text-xs px-1.5 py-0.5 rounded">
+                Portada
+              </span>
+            </div>
+          )}
           <div className="flex gap-2 flex-wrap">
-            {fotos.slice(0, 5).map((src, i) => (
-              <img key={i} src={src} alt={`Foto ${i + 1}`} className="w-16 h-16 object-cover rounded" />
+            {fotos.slice(0, 5).map((foto, i) => (
+              <img key={foto.key} src={foto.preview} alt={`Foto ${i + 1}`} className="w-16 h-16 object-cover rounded" />
             ))}
             {fotos.length > 5 && (
               <div className="w-16 h-16 bg-secondary-100 rounded flex items-center justify-center text-xs text-secondary-500">

@@ -1,3 +1,5 @@
+import { forwardRef } from 'react';
+
 // Estilos base compartidos para campos
 const fieldBase =
   'w-full rounded border border-secondary-300 bg-white px-3 py-2 text-sm text-secondary-900 ' +
@@ -21,12 +23,14 @@ function ErrorMsg({ id, message }) {
   return <p id={id} className="mt-1 text-xs text-danger-600">{message}</p>;
 }
 
-export function Input({ id, label, error, required, className = '', ...props }) {
+// Los campos usan forwardRef: React Hook Form necesita el ref del elemento nativo para leer su valor
+export const Input = forwardRef(function Input({ id, label, error, required, className = '', ...props }, ref) {
   const errId = error ? `${id}-error` : undefined;
   return (
     <div className={className}>
       {label && <Label htmlFor={id} required={required}>{label}</Label>}
       <input
+        ref={ref}
         id={id}
         aria-describedby={errId}
         aria-invalid={!!error}
@@ -36,14 +40,15 @@ export function Input({ id, label, error, required, className = '', ...props }) 
       <ErrorMsg id={errId} message={error} />
     </div>
   );
-}
+});
 
-export function Textarea({ id, label, error, required, className = '', ...props }) {
+export const Textarea = forwardRef(function Textarea({ id, label, error, required, className = '', ...props }, ref) {
   const errId = error ? `${id}-error` : undefined;
   return (
     <div className={className}>
       {label && <Label htmlFor={id} required={required}>{label}</Label>}
       <textarea
+        ref={ref}
         id={id}
         aria-describedby={errId}
         aria-invalid={!!error}
@@ -54,14 +59,15 @@ export function Textarea({ id, label, error, required, className = '', ...props 
       <ErrorMsg id={errId} message={error} />
     </div>
   );
-}
+});
 
-export function Select({ id, label, error, required, children, className = '', ...props }) {
+export const Select = forwardRef(function Select({ id, label, error, required, children, className = '', ...props }, ref) {
   const errId = error ? `${id}-error` : undefined;
   return (
     <div className={className}>
       {label && <Label htmlFor={id} required={required}>{label}</Label>}
       <select
+        ref={ref}
         id={id}
         aria-describedby={errId}
         aria-invalid={!!error}
@@ -73,14 +79,15 @@ export function Select({ id, label, error, required, children, className = '', .
       <ErrorMsg id={errId} message={error} />
     </div>
   );
-}
+});
 
-export function Checkbox({ id, label, error, className = '', ...props }) {
+export const Checkbox = forwardRef(function Checkbox({ id, label, error, className = '', ...props }, ref) {
   const errId = error ? `${id}-error` : undefined;
   return (
     <div className={className}>
       <div className="flex items-center gap-2">
         <input
+          ref={ref}
           type="checkbox"
           id={id}
           aria-describedby={errId}
@@ -97,4 +104,4 @@ export function Checkbox({ id, label, error, className = '', ...props }) {
       <ErrorMsg id={errId} message={error} />
     </div>
   );
-}
+});

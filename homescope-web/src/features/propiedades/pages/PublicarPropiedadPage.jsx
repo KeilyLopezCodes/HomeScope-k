@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import StepIndicator    from '../components/StepIndicator';
@@ -8,6 +8,7 @@ import StepUbicacion    from '../components/StepUbicacion';
 import StepConfirmacion from '../components/StepConfirmacion';
 import { useBorradorPropiedad } from '../hooks/useBorradorPropiedad';
 import { apiClient } from '../../../shared/api/client';
+import { subirFotos } from '../services/fotosService';
 import { useToast } from '../../../shared/components/ui';
 import { Button, Card } from '../../../shared/components/ui';
 
@@ -23,6 +24,8 @@ export default function PublicarPropiedadPage() {
   const [borradorGuardado, setBorrador] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const { guardar, cargar, limpiar } = useBorradorPropiedad();
+  // Pasos ya completados en el servidor, para no duplicar la propiedad o las fotos al reintentar
+  const progreso = useRef({ id: null, fotosSubidas: false });
   const navigate = useNavigate();
   const toast    = useToast();
 
@@ -36,7 +39,8 @@ export default function PublicarPropiedadPage() {
   useEffect(() => {
     const borrador = cargar();
     if (borrador) {
-      const { _savedAt, paso_formulario, ...data } = borrador;
+      // Borradores antiguos guardaban las fotos como URLs blob (ya inválidas): descartarlas
+      const { _savedAt, paso_formulario, fotos, fotoPortada, ...data } = borrador;
       reset(data);
       if (paso_formulario) setStep(Math.min(paso_formulario - 1, 3));
       setBorrador(true);
@@ -53,28 +57,49 @@ export default function PublicarPropiedadPage() {
   }
 
   function handleGuardarBorrador() {
-    guardar({ ...getValues(), paso_formulario: step + 1 });
+    // Los archivos de fotos no se pueden serializar en localStorage
+    const { fotos, fotoPortada, ...valores } = getValues();
+    guardar({ ...valores, paso_formulario: step + 1 });
     setBorrador(true);
     toast('Borrador guardado', 'success');
   }
 
   async function onSubmit(data) {
+    // Las fotos no se guardan en el borrador local (son archivos): si se restauró un borrador, pedirlas de nuevo
+    if (!data.fotos?.length) {
+      setStep(1);
+      toast('Agrega al menos una foto antes de publicar', 'error');
+      return;
+    }
+
     setEnviando(true);
     try {
-      // Excluir fotos (se suben por separado con Cloudinary)
-      const { fotos, ...campos } = data;
+      // Las fotos se suben aparte como multipart
+      const { fotos, fotoPortada, ...campos } = data;
 
-      // 1. Crear la propiedad como borrador
-      const nueva = await apiClient('/api/v1/propiedades', {
+      // 1. Crear la propiedad como borrador (si un intento anterior ya la creó, reutilizarla)
+      if (!progreso.current.id) {
+        const nueva = await apiClient('/api/v1/propiedades', {
+          method: 'POST',
+          body: JSON.stringify({ ...campos, paso_formulario: 4 }),
+        });
+        progreso.current.id = nueva.id;
+      }
+      const id = progreso.current.id;
+
+      // 2. Subir las fotos en el orden elegido, indicando cuál es la portada
+      if (!progreso.current.fotosSubidas) {
+        const indicePortada = Math.max(0, fotos.findIndex((f) => f.key === fotoPortada));
+        await subirFotos(id, fotos.map((f) => f.file), indicePortada);
+        progreso.current.fotosSubidas = true;
+      }
+
+      // 3. Publicar (borrador → publicado)
+      await apiClient(`/api/v1/propiedades/${id}/publicar`, {
         method: 'POST',
-        body: JSON.stringify({ ...campos, paso_formulario: 4 }),
       });
 
-      // 2. Publicar inmediatamente (borrador → publicado)
-      await apiClient(`/api/v1/propiedades/${nueva.id}/publicar`, {
-        method: 'POST',
-      });
-
+      fotos.forEach((f) => URL.revokeObjectURL(f.preview));
       limpiar();
       toast('Propiedad publicada correctamente', 'success');
       navigate('/mis-propiedades');

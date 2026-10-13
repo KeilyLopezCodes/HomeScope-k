@@ -19,8 +19,10 @@ async function refreshToken() {
 }
 
 export async function apiClient(path, options = {}) {
+  // Con FormData el navegador define el Content-Type multipart (con su boundary)
+  const esFormData = options.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(!esFormData && { 'Content-Type': 'application/json' }),
     ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
     ...options.headers,
   };
