@@ -7,6 +7,7 @@ import { env } from './config/env.js';
 import { prisma } from './config/prisma.js';
 import { swaggerSpec } from './config/swagger.js';
 import { errorHandler } from './shared/middleware/errorHandler.js';
+import { UPLOADS_DIR } from './shared/adapters/storage/index.js';
 
 // Módulos
 import identidadRoutes from './modules/identidad/identidad.routes.js';
@@ -33,6 +34,13 @@ app.use(helmet({
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Archivos subidos con la estrategia de storage local. CORP cross-origin para que el
+// frontend (otro origen) pueda mostrarlas; helmet por defecto lo restringe a same-origin.
+app.use('/uploads', express.static(UPLOADS_DIR, {
+  index: false,
+  setHeaders: (res) => res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'),
+}));
 
 // Swagger UI
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

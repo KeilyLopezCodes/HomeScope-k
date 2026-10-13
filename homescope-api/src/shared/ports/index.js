@@ -4,10 +4,16 @@ export class MapsPort {
   async geocodeAddress(_address) { throw new Error('Not implemented'); }
 }
 
-// StoragePort — interfaz para Cloudinary
+// StoragePort — estrategia de almacenamiento de archivos (disco local, Cloudinary…)
+// Implementaciones en shared/adapters/storage/
 export class StoragePort {
-  async signUpload(_folder) { throw new Error('Not implemented'); }
-  async deleteFile(_publicId) { throw new Error('Not implemented'); }
+  /**
+   * @param {{ buffer: Buffer, mimetype: string, originalname: string, size: number }} archivo
+   * @param {string} carpeta  ruta lógica, ej. 'propiedades/12'
+   * @returns {Promise<{ url: string, public_id: string }>}
+   */
+  async subir(_archivo, _carpeta) { throw new Error('Not implemented'); }
+  async eliminar(_publicId) { throw new Error('Not implemented'); }
 }
 
 // MailPort — interfaz para SMTP

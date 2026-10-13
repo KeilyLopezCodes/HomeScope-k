@@ -1,7 +1,8 @@
 import { AppError } from '../../shared/errors/AppError.js';
 import { PropiedadesRepository } from './propiedades.repository.js';
 import { ComunicacionRepository } from '../comunicacion/comunicacion.repository.js';
-import { TRANSICIONES } from './propiedades.schemas.js';
+import { TRANSICIONES, FOTOS_CONFIG } from './propiedades.schemas.js';
+import { storage } from '../../shared/adapters/storage/index.js';
 
 const repo            = new PropiedadesRepository();
 const comunicacionRepo = new ComunicacionRepository();
@@ -88,7 +89,77 @@ export class PropiedadesService {
 
   async eliminar(propiedadId, usuarioId) {
     await this._verificarDueno(propiedadId, usuarioId);
-    await repo.eliminar(propiedadId);
+    const fotos = await repo.listarFotos(propiedadId);
+    await repo.eliminar(propiedadId); // las filas de fotos se borran en cascada
+    await this._borrarArchivos(fotos.map((f) => f.public_id));
+  }
+
+  // ── Fotos ──────────────────────────────────────────────────────────────────
+
+  // archivos: req.files de multer (ya validados en tipo y tamaño), en el orden enviado
+  async agregarFotos(propiedadId, archivos, indicePortada, usuarioId) {
+    await this._verificarEditable(propiedadId, usuarioId);
+
+    if (!archivos?.length)
+      throw new AppError('SIN_ARCHIVOS', 'Debes enviar al menos una imagen', 422);
+    if (indicePortada !== undefined && indicePortada >= archivos.length)
+      throw new AppError('VALIDACION', 'El índice de portada no corresponde a ninguna imagen enviada', 422);
+
+    const actuales = await repo.listarFotos(propiedadId);
+    const { maxPorPropiedad } = FOTOS_CONFIG;
+    if (actuales.length + archivos.length > maxPorPropiedad)
+      throw new AppError(
+        'LIMITE_FOTOS',
+        `Una propiedad admite máximo ${maxPorPropiedad} fotos (ya tiene ${actuales.length})`,
+        422
+      );
+
+    // Subir a la estrategia de storage; si algo falla, revertir lo ya subido
+    const subidas = [];
+    try {
+      for (const archivo of archivos) {
+        const { url, public_id } = await storage.subir(archivo, `propiedades/${propiedadId}`);
+        subidas.push({ url, public_id, tamano_bytes: archivo.size });
+      }
+      await repo.agregarFotos(propiedadId, subidas, indicePortada ?? null);
+    } catch (err) {
+      await this._borrarArchivos(subidas.map((s) => s.public_id));
+      throw err;
+    }
+
+    return repo.listarFotos(propiedadId);
+  }
+
+  async eliminarFoto(propiedadId, fotoId, usuarioId) {
+    await this._verificarEditable(propiedadId, usuarioId);
+    await this._verificarFoto(propiedadId, fotoId);
+    const foto = await repo.eliminarFoto(propiedadId, fotoId);
+    await this._borrarArchivos([foto.public_id]);
+    return repo.listarFotos(propiedadId);
+  }
+
+  async reordenarFotos(propiedadId, orden, usuarioId) {
+    await this._verificarEditable(propiedadId, usuarioId);
+    const actuales = await repo.listarFotos(propiedadId);
+    const idsActuales = new Set(actuales.map((f) => f.id));
+    const idsNuevos   = new Set(orden);
+
+    const mismoConjunto =
+      orden.length === idsActuales.size &&
+      idsNuevos.size === orden.length &&
+      orden.every((id) => idsActuales.has(id));
+    if (!mismoConjunto)
+      throw new AppError('ORDEN_INVALIDO', 'El orden debe incluir exactamente todas las fotos de la propiedad, sin repetir', 422);
+
+    await repo.reordenarFotos(orden);
+    return repo.listarFotos(propiedadId);
+  }
+
+  async definirPortada(propiedadId, fotoId, usuarioId) {
+    await this._verificarEditable(propiedadId, usuarioId);
+    await this._verificarFoto(propiedadId, fotoId);
+    await repo.definirPortada(propiedadId, fotoId);
+    return repo.listarFotos(propiedadId);
   }
 
   // POST /propiedades/:id/publicar  → borrador|pausado → publicado
@@ -114,6 +185,27 @@ export class PropiedadesService {
     if (propiedad.vendedor.id !== usuarioId)
       throw new AppError('SIN_PERMISO', 'No tienes permiso para modificar esta propiedad', 403);
     return propiedad;
+  }
+
+  async _verificarEditable(propiedadId, usuarioId) {
+    const propiedad = await this._verificarDueno(propiedadId, usuarioId);
+    if (['vendido', 'alquilado'].includes(propiedad.estado))
+      throw new AppError('ESTADO_INVALIDO', 'No se puede editar una propiedad vendida o alquilada', 422);
+    return propiedad;
+  }
+
+  async _verificarFoto(propiedadId, fotoId) {
+    const foto = await repo.buscarFoto(propiedadId, fotoId);
+    if (!foto) throw new AppError('NO_ENCONTRADO', 'Foto no encontrada', 404);
+    return foto;
+  }
+
+  // Borra archivos del storage sin interrumpir la operación si alguno falla
+  async _borrarArchivos(publicIds) {
+    const resultados = await Promise.allSettled(publicIds.map((id) => storage.eliminar(id)));
+    resultados
+      .filter((r) => r.status === 'rejected')
+      .forEach((r) => console.error('No se pudo eliminar archivo del storage:', r.reason?.message));
   }
 
   _validarTransicion(estadoActual, estadoDestino) {

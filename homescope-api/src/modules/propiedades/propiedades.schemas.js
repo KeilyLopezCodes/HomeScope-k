@@ -39,6 +39,25 @@ export const editarPropiedadSchema = z.object(
   message: 'Debes enviar al menos un campo para actualizar',
 });
 
+// ── Fotos ──────────────────────────────────────────────────────────────────
+
+export const FOTOS_CONFIG = {
+  maxPorPropiedad: 10,
+  maxBytes:        5 * 1024 * 1024, // 5 MB por imagen
+  tipos:           ['image/jpeg', 'image/png', 'image/webp'],
+};
+
+// Campos de texto que acompañan al multipart de POST /:id/fotos
+export const subirFotosSchema = z.object({
+  // Índice (dentro de los archivos enviados) de la foto que será portada
+  portada: z.coerce.number().int().min(0).optional(),
+});
+
+// Orden completo de las fotos: todos los ids de la propiedad, en el orden deseado
+export const ordenFotosSchema = z.object({
+  orden: z.array(z.coerce.number().int().positive()).min(1),
+});
+
 // Estados válidos para la transición manual del vendedor
 export const ESTADOS_VALIDOS = ['borrador', 'publicado', 'pausado', 'vendido', 'alquilado'];
 

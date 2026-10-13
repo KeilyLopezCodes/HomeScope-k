@@ -2,6 +2,8 @@ import { prisma } from '../../config/prisma.js';
 
 const VENDEDOR_PUBLICO = { id: true, nombre: true };
 
+const FOTO_SELECT = { id: true, url: true, public_id: true, orden: true, es_portada: true, tamano_bytes: true };
+
 const PROPIEDAD_LISTA = {
   id: true, titulo: true, direccion: true, precio: true, moneda: true,
   modalidad: true, estado: true, fecha_creacion: true,
@@ -118,6 +120,94 @@ export class PropiedadesRepository {
       },
       select: { id: true, estado: true },
     });
+  }
+
+  // ── Fotos ──────────────────────────────────────────────────────────────────
+
+  async listarFotos(propiedadId) {
+    return prisma.fotoPropiedad.findMany({
+      where:   { propiedad_id: propiedadId },
+      orderBy: { orden: 'asc' },
+      select:  FOTO_SELECT,
+    });
+  }
+
+  async buscarFoto(propiedadId, fotoId) {
+    return prisma.fotoPropiedad.findFirst({
+      where:  { id: fotoId, propiedad_id: propiedadId },
+      select: FOTO_SELECT,
+    });
+  }
+
+  // fotos: [{ url, public_id, tamano_bytes }] en el orden deseado; se agregan al final.
+  // indicePortada: índice dentro de `fotos` que pasa a ser portada (o null).
+  async agregarFotos(propiedadId, fotos, indicePortada = null) {
+    return prisma.$transaction(async (tx) => {
+      const ultima = await tx.fotoPropiedad.aggregate({
+        where: { propiedad_id: propiedadId },
+        _max:  { orden: true },
+      });
+      const hayPortada = await tx.fotoPropiedad.count({
+        where: { propiedad_id: propiedadId, es_portada: true },
+      });
+      // Si no hay portada previa ni se indicó una, la primera foto nueva es la portada
+      const portada = indicePortada ?? (hayPortada ? null : 0);
+      if (portada !== null && hayPortada) {
+        await tx.fotoPropiedad.updateMany({
+          where: { propiedad_id: propiedadId },
+          data:  { es_portada: false },
+        });
+      }
+
+      const base = (ultima._max.orden ?? 0) + 1;
+      await tx.fotoPropiedad.createMany({
+        data: fotos.map((f, i) => ({
+          propiedad_id: propiedadId,
+          url:          f.url,
+          public_id:    f.public_id,
+          tamano_bytes: f.tamano_bytes,
+          orden:        base + i,
+          es_portada:   i === portada,
+        })),
+      });
+    });
+  }
+
+  // Elimina la foto, compacta el orden y reasigna portada si hacía falta
+  async eliminarFoto(propiedadId, fotoId) {
+    return prisma.$transaction(async (tx) => {
+      const foto = await tx.fotoPropiedad.delete({ where: { id: fotoId } });
+      const restantes = await tx.fotoPropiedad.findMany({
+        where:   { propiedad_id: propiedadId },
+        orderBy: { orden: 'asc' },
+        select:  { id: true, es_portada: true },
+      });
+      const asignarPortada = foto.es_portada && restantes.length > 0;
+      await Promise.all(restantes.map((f, i) =>
+        tx.fotoPropiedad.update({
+          where: { id: f.id },
+          data:  { orden: i + 1, ...(asignarPortada && i === 0 && { es_portada: true }) },
+        })
+      ));
+      return foto;
+    });
+  }
+
+  // ids: todos los ids de fotos de la propiedad en el nuevo orden
+  async reordenarFotos(ids) {
+    return prisma.$transaction(ids.map((id, i) =>
+      prisma.fotoPropiedad.update({ where: { id }, data: { orden: i + 1 } })
+    ));
+  }
+
+  async definirPortada(propiedadId, fotoId) {
+    return prisma.$transaction([
+      prisma.fotoPropiedad.updateMany({
+        where: { propiedad_id: propiedadId, es_portada: true },
+        data:  { es_portada: false },
+      }),
+      prisma.fotoPropiedad.update({ where: { id: fotoId }, data: { es_portada: true } }),
+    ]);
   }
 
   // Registra cambio de precio en historial

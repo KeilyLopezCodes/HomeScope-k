@@ -2,6 +2,8 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env.js';
 import { authenticate, requirePermission } from '../../shared/middleware/auth.js';
+import { subirArchivos } from '../../shared/middleware/upload.js';
+import { FOTOS_CONFIG } from './propiedades.schemas.js';
 import * as controller from './propiedades.controller.js';
 
 const router = Router();
@@ -435,7 +437,138 @@ router.post('/:id/publicar', authenticate, requirePermission('propiedad.crear'),
  */
 router.patch('/:id/estado', authenticate, controller.cambiarEstado);
 
-router.post('/:id/fotos',           authenticate, controller.agregarFoto);
+/**
+ * @openapi
+ * /propiedades/{id}/fotos:
+ *   post:
+ *     tags: [Propiedades]
+ *     summary: Subir fotos a una propiedad (solo el dueño)
+ *     description: |
+ *       Carga múltiple (campo `fotos`). Formatos JPG, PNG o WEBP, máximo 5 MB por imagen
+ *       y 10 fotos por propiedad. Las fotos se agregan al final del orden actual.
+ *       Si la propiedad no tenía portada y no se indica `portada`, la primera imagen enviada pasa a ser la portada.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [fotos]
+ *             properties:
+ *               fotos:
+ *                 type: array
+ *                 items: { type: string, format: binary }
+ *               portada:
+ *                 type: integer
+ *                 description: Índice (desde 0) de la imagen enviada que será la portada.
+ *     responses:
+ *       201:
+ *         description: Lista actualizada de fotos de la propiedad.
+ *       403:
+ *         description: No eres el dueño.
+ *       413:
+ *         description: Alguna imagen supera el tamaño máximo.
+ *       422:
+ *         description: Formato no permitido o límite de fotos excedido.
+ */
+router.post('/:id/fotos', authenticate,
+  subirArchivos('fotos', {
+    maxArchivos: FOTOS_CONFIG.maxPorPropiedad,
+    maxBytes:    FOTOS_CONFIG.maxBytes,
+    tipos:       FOTOS_CONFIG.tipos,
+  }),
+  controller.agregarFotos);
+
+/**
+ * @openapi
+ * /propiedades/{id}/fotos/orden:
+ *   put:
+ *     tags: [Propiedades]
+ *     summary: Reordenar las fotos de una propiedad (solo el dueño)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [orden]
+ *             properties:
+ *               orden:
+ *                 type: array
+ *                 description: Todos los ids de fotos de la propiedad en el nuevo orden.
+ *                 items: { type: integer }
+ *                 example: [12, 10, 11]
+ *     responses:
+ *       200:
+ *         description: Lista actualizada de fotos.
+ *       422:
+ *         description: El orden no incluye exactamente todas las fotos.
+ */
+router.put('/:id/fotos/orden', authenticate, controller.reordenarFotos);
+
+/**
+ * @openapi
+ * /propiedades/{id}/fotos/{fotoId}/portada:
+ *   patch:
+ *     tags: [Propiedades]
+ *     summary: Definir la foto de portada (solo el dueño)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *       - in: path
+ *         name: fotoId
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Lista actualizada de fotos.
+ *       404:
+ *         description: Foto no encontrada.
+ */
+router.patch('/:id/fotos/:fotoId/portada', authenticate, controller.definirPortada);
+
+/**
+ * @openapi
+ * /propiedades/{id}/fotos/{fotoId}:
+ *   delete:
+ *     tags: [Propiedades]
+ *     summary: Eliminar una foto (solo el dueño)
+ *     description: Si era la portada, la primera foto restante pasa a ser la portada.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *       - in: path
+ *         name: fotoId
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Lista actualizada de fotos.
+ *       404:
+ *         description: Foto no encontrada.
+ */
 router.delete('/:id/fotos/:fotoId', authenticate, controller.eliminarFoto);
 
 export default router;

@@ -1,5 +1,8 @@
 import { PropiedadesService } from './propiedades.service.js';
-import { crearPropiedadSchema, editarPropiedadSchema, ESTADOS_VALIDOS } from './propiedades.schemas.js';
+import {
+  crearPropiedadSchema, editarPropiedadSchema, ESTADOS_VALIDOS,
+  subirFotosSchema, ordenFotosSchema,
+} from './propiedades.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
 const service = new PropiedadesService();
@@ -251,6 +254,38 @@ export async function cambiarEstado(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// Fotos — pendiente de implementar con Cloudinary
-export const agregarFoto  = (_req, res) => res.status(501).json({ message: 'Not implemented' });
-export const eliminarFoto = (_req, res) => res.status(501).json({ message: 'Not implemented' });
+// ── Fotos ──────────────────────────────────────────────────────────────────
+// Todas responden con la lista actualizada de fotos de la propiedad (ordenada).
+
+export async function agregarFotos(req, res, next) {
+  try {
+    const id = parseId(req.params.id);
+    const { portada } = validar(subirFotosSchema, req.body ?? {});
+    const fotos = await service.agregarFotos(id, req.files, portada, req.user.sub);
+    res.status(201).json(fotos);
+  } catch (err) { next(err); }
+}
+
+export async function eliminarFoto(req, res, next) {
+  try {
+    const id     = parseId(req.params.id);
+    const fotoId = parseId(req.params.fotoId);
+    res.json(await service.eliminarFoto(id, fotoId, req.user.sub));
+  } catch (err) { next(err); }
+}
+
+export async function reordenarFotos(req, res, next) {
+  try {
+    const id        = parseId(req.params.id);
+    const { orden } = validar(ordenFotosSchema, req.body);
+    res.json(await service.reordenarFotos(id, orden, req.user.sub));
+  } catch (err) { next(err); }
+}
+
+export async function definirPortada(req, res, next) {
+  try {
+    const id     = parseId(req.params.id);
+    const fotoId = parseId(req.params.fotoId);
+    res.json(await service.definirPortada(id, fotoId, req.user.sub));
+  } catch (err) { next(err); }
+}
