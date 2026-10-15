@@ -7,6 +7,7 @@ const FOTO_SELECT = { id: true, url: true, public_id: true, orden: true, es_port
 const PROPIEDAD_LISTA = {
   id: true, titulo: true, direccion: true, precio: true, moneda: true,
   modalidad: true, estado: true, fecha_creacion: true,
+  zona: true, municipio: true, departamento: true,
   tipo_propiedad: { select: { nombre: true } },
   vendedor:       { select: VENDEDOR_PUBLICO },
   fotos: {
@@ -19,15 +20,20 @@ const PROPIEDAD_LISTA = {
 export class PropiedadesRepository {
   // ── Lectura ────────────────────────────────────────────────────────────────
 
-  async listar({ page = 1, limit = 20 } = {}) {
-    const skip = (page - 1) * limit;
-    return prisma.propiedad.findMany({
-      where:   { estado: 'publicado' },
-      skip,
-      take:    limit,
-      orderBy: { fecha_creacion: 'desc' },
-      select:  PROPIEDAD_LISTA,
-    });
+  // Devuelve la página pedida y el total de publicadas, en una sola transacción
+  async listar({ page = 1, pageSize = 20 } = {}) {
+    const where = { estado: 'publicado' };
+    const [items, total] = await prisma.$transaction([
+      prisma.propiedad.findMany({
+        where,
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+        orderBy: [{ fecha_publicacion: 'desc' }, { id: 'desc' }],
+        select:  PROPIEDAD_LISTA,
+      }),
+      prisma.propiedad.count({ where }),
+    ]);
+    return { items, total };
   }
 
   async buscarPorId(id) {

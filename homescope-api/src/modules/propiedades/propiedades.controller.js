@@ -1,7 +1,7 @@
 import { PropiedadesService } from './propiedades.service.js';
 import {
   crearPropiedadSchema, editarPropiedadSchema, ESTADOS_VALIDOS,
-  subirFotosSchema, ordenFotosSchema,
+  subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema,
 } from './propiedades.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
@@ -31,9 +31,8 @@ function validar(schema, body) {
 
 export async function listar(req, res, next) {
   try {
-    const page  = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit = Math.min(50, parseInt(req.query.limit) || 20);
-    res.json(await service.listar({ page, limit }));
+    const query = validar(listarPropiedadesSchema, req.query);
+    res.json(await service.listar(query));
   } catch (err) { next(err); }
 }
 

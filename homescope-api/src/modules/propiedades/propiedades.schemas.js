@@ -39,6 +39,12 @@ export const editarPropiedadSchema = z.object(
   message: 'Debes enviar al menos un campo para actualizar',
 });
 
+// Query del catálogo público: ?page=1&pageSize=20 (RNF-02)
+export const listarPropiedadesSchema = z.object({
+  page:     z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 // ── Fotos ──────────────────────────────────────────────────────────────────
 
 export const FOTOS_CONFIG = {

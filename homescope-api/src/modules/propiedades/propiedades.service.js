@@ -11,8 +11,15 @@ export class PropiedadesService {
 
   // ── Lectura ────────────────────────────────────────────────────────────────
 
-  async listar(query) {
-    return repo.listar(query);
+  async listar({ page, pageSize }) {
+    const { items, total } = await repo.listar({ page, pageSize });
+    return {
+      // TODO: tomar el índice vigente cuando geo-indice lo calcule; mientras tanto el semáforo queda "sin calcular"
+      data: items.map((p) => ({ ...p, indice_conveniencia: null })),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   async getById(propiedadId, solicitanteId = null) {

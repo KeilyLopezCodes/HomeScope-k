@@ -28,18 +28,56 @@ function optionalAuth(req, _res, next) {
  * /propiedades:
  *   get:
  *     tags: [Propiedades]
- *     summary: Listar propiedades publicadas
- *     description: Catálogo público. No incluye email ni teléfono del vendedor.
+ *     summary: Listar propiedades publicadas (paginado)
+ *     description: Catálogo público, solo propiedades en estado publicado. No incluye email ni teléfono del vendedor.
  *     parameters:
  *       - in: query
  *         name: page
- *         schema: { type: integer, default: 1 }
+ *         schema: { type: integer, default: 1, minimum: 1 }
  *       - in: query
- *         name: limit
- *         schema: { type: integer, default: 20, maximum: 50 }
+ *         name: pageSize
+ *         schema: { type: integer, default: 20, minimum: 1, maximum: 50 }
  *     responses:
  *       200:
- *         description: Lista de propiedades.
+ *         description: Página de propiedades publicadas.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:             { type: integer }
+ *                       titulo:         { type: string }
+ *                       direccion:      { type: string }
+ *                       zona:           { type: string, nullable: true }
+ *                       municipio:      { type: string, nullable: true }
+ *                       departamento:   { type: string, nullable: true }
+ *                       precio:         { type: string, example: "850000.00" }
+ *                       moneda:         { type: string, example: GTQ }
+ *                       modalidad:      { type: string, example: venta }
+ *                       tipo_propiedad: { type: object, properties: { nombre: { type: string } } }
+ *                       fotos:
+ *                         type: array
+ *                         description: Solo la foto de portada (0 o 1 elementos)
+ *                         items: { type: object, properties: { url: { type: string } } }
+ *                       indice_conveniencia:
+ *                         type: object
+ *                         nullable: true
+ *                         description: null mientras el índice no se haya calculado
+ *                         properties:
+ *                           puntaje: { type: number, minimum: 0, maximum: 100 }
+ *                 total:    { type: integer }
+ *                 page:     { type: integer }
+ *                 pageSize: { type: integer }
+ *       422:
+ *         description: Parámetros de paginación inválidos.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
  */
 router.get('/', optionalAuth, controller.listar);
 
