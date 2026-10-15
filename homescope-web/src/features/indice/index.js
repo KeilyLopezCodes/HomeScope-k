@@ -1,2 +1,3 @@
 // TODO: Implementar feature indice
-// Componentes: Semaforo, DesgloseIndice, PuntosInteresCercanos
+// Componentes pendientes: DesgloseIndice, PuntosInteresCercanos
+export { default as Semaforo, nivelIndice } from './components/Semaforo';
