@@ -153,11 +153,18 @@ router.get('/vistas', authenticate, controller.listarVistas);
  * /propiedades/{id}:
  *   get:
  *     tags: [Propiedades]
- *     summary: Detalle de una propiedad
+ *     summary: Detalle de una propiedad (ficha)
  *     description: |
- *       Devuelve el detalle completo. El `email` y `telefono` del vendedor **solo se incluyen**
- *       si el solicitante autenticado tiene una conversación activa con el vendedor (RNF-08).
+ *       Ficha pública de una propiedad publicada. El token es opcional: con sesión se informa
+ *       si el usuario es el dueño (`es_dueno`) y si la tiene en favoritos (`es_favorito`).
+ *
+ *       - Una propiedad no publicada (borrador, pausada, vendida…) responde 404, salvo para su dueño
+ *         y para el administrador, que la reciben con su `estado`.
+ *       - El `email` y `telefono` del vendedor **solo se incluyen** si el solicitante tiene una
+ *         conversación con el vendedor sobre esta propiedad (RNF-08).
+ *       - `indice_conveniencia` es null mientras el índice esté en cálculo.
  *     security:
+ *       - {}
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
@@ -172,22 +179,69 @@ router.get('/vistas', authenticate, controller.listarVistas);
  *             schema:
  *               type: object
  *               properties:
- *                 id:          { type: integer }
- *                 titulo:      { type: string }
- *                 descripcion: { type: string }
- *                 precio:      { type: number }
- *                 moneda:      { type: string }
- *                 modalidad:   { type: string }
+ *                 id:                { type: integer }
+ *                 titulo:            { type: string }
+ *                 descripcion:       { type: string, nullable: true }
+ *                 precio:            { type: string, example: "850000.00" }
+ *                 moneda:            { type: string, example: GTQ }
+ *                 modalidad:         { type: string, example: venta }
+ *                 estado:            { type: string, example: publicado }
+ *                 habitaciones:      { type: integer, nullable: true }
+ *                 banos:             { type: string, nullable: true, example: "2.5" }
+ *                 area_m2:           { type: string, nullable: true, example: "180.00" }
+ *                 parqueos:          { type: integer, nullable: true }
+ *                 direccion:         { type: string }
+ *                 zona:              { type: string, nullable: true }
+ *                 municipio:         { type: string, nullable: true }
+ *                 departamento:      { type: string, nullable: true }
+ *                 latitud:           { type: string, nullable: true }
+ *                 longitud:          { type: string, nullable: true }
+ *                 fecha_publicacion: { type: string, format: date-time, nullable: true }
+ *                 tipo_propiedad:    { type: object, properties: { id: { type: integer }, nombre: { type: string } } }
+ *                 fotos:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:         { type: integer }
+ *                       url:        { type: string }
+ *                       orden:      { type: integer }
+ *                       es_portada: { type: boolean }
+ *                 historial_precios:
+ *                   type: array
+ *                   description: Cambios de precio, del más antiguo al más reciente
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       precio_anterior: { type: string }
+ *                       precio_nuevo:    { type: string }
+ *                       fecha_cambio:    { type: string, format: date-time }
+ *                 indice_conveniencia:
+ *                   type: object
+ *                   nullable: true
+ *                   description: null mientras el índice esté en cálculo
+ *                 puntos_interes: { type: array, items: { type: object } }
+ *                 es_dueno:       { type: boolean }
+ *                 es_favorito:    { type: boolean }
  *                 vendedor:
  *                   type: object
  *                   properties:
- *                     id:       { type: integer }
- *                     nombre:   { type: string }
- *                     apellido: { type: string }
- *                     email:    { type: string, description: "Solo si existe conversación" }
- *                     telefono: { type: string, description: "Solo si existe conversación" }
+ *                     id:                    { type: integer }
+ *                     nombre:                { type: string }
+ *                     apellido:              { type: string }
+ *                     foto_url:              { type: string, nullable: true }
+ *                     verificado:            { type: boolean }
+ *                     calificacion_promedio: { type: number, nullable: true }
+ *                     total_resenas:         { type: integer }
+ *                     email:                 { type: string, description: "Solo si existe conversación" }
+ *                     telefono:              { type: string, description: "Solo si existe conversación" }
+ *       400:
+ *         description: ID inválido.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
  *       404:
- *         description: Propiedad no encontrada.
+ *         description: La propiedad no existe o no está publicada.
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }

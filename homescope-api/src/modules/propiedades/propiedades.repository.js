@@ -45,14 +45,19 @@ export class PropiedadesRepository {
         habitaciones: true, banos: true, area_m2: true, parqueos: true,
         zona: true, municipio: true, departamento: true,
         latitud: true, longitud: true, paso_formulario: true,
-        fecha_creacion: true, fecha_actualizacion: true,
+        fecha_publicacion: true, fecha_creacion: true, fecha_actualizacion: true,
         tipo_propiedad: { select: { id: true, nombre: true } },
         vendedor: {
-          select: { id: true, nombre: true, apellido: true, email: true, telefono: true },
+          select: { id: true, nombre: true, apellido: true, foto_url: true, email: true, telefono: true },
         },
         fotos: {
           select:  { id: true, url: true, orden: true, es_portada: true },
           orderBy: { orden: 'asc' },
+        },
+        // Sin `cambiado_por`: quién cambió el precio no se expone en la ficha pública
+        historial_precios: {
+          select:  { id: true, precio_anterior: true, precio_nuevo: true, fecha_cambio: true },
+          orderBy: { fecha_cambio: 'asc' },
         },
       },
     });

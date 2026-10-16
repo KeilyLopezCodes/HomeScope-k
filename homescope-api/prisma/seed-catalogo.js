@@ -4,7 +4,8 @@
  * Crea, a nombre de un vendedor propio (catalogo@prueba.com / Password123):
  *   - 30 propiedades PUBLICADAS → con pageSize 12 son 3 páginas (12 + 12 + 6), más las que ya existan
  *   - 3 en BORRADOR y 2 PAUSADAS → NO deben aparecer en el catálogo ni contar en `total`
- *   - Fotos de portada externas (picsum.photos) en 2 de cada 3 publicadas; el resto sin foto
+ *   - Fotos externas (picsum.photos) en 2 de cada 3 publicadas (de 1 a 6, la primera es la portada); el resto sin foto
+ *   - Coordenadas en todas menos Chiquimula (para probar el mapa por dirección) y cambios de precio en 1 de cada 5
  *
  * Es re-ejecutable y NO toca otros datos: solo borra las propiedades de ese vendedor.
  *
@@ -21,16 +22,17 @@ const EMAIL_VENDEDOR = 'catalogo@prueba.com';
 const TOTAL_PUBLICADAS = 30;
 
 const UBICACIONES = [
-  { zona: 'Zona 1',  municipio: 'Jalapa',          departamento: 'Jalapa' },
-  { zona: 'Zona 2',  municipio: 'Jalapa',          departamento: 'Jalapa' },
-  { zona: null,      municipio: 'Monjas',          departamento: 'Jalapa' },
-  { zona: null,      municipio: 'San Pedro Pinula', departamento: 'Jalapa' },
-  { zona: 'Zona 10', municipio: 'Guatemala',       departamento: 'Guatemala' },
-  { zona: 'Zona 15', municipio: 'Guatemala',       departamento: 'Guatemala' },
-  { zona: null,      municipio: 'Mixco',           departamento: 'Guatemala' },
-  { zona: null,      municipio: 'Antigua Guatemala', departamento: 'Sacatepéquez' },
-  { zona: null,      municipio: 'Jutiapa',         departamento: 'Jutiapa' },
-  { zona: null,      municipio: 'Chiquimula',      departamento: 'Chiquimula' },
+  { zona: 'Zona 1',  municipio: 'Jalapa',            departamento: 'Jalapa',       lat: 14.6339, lng: -89.9892 },
+  { zona: 'Zona 2',  municipio: 'Jalapa',            departamento: 'Jalapa',       lat: 14.6395, lng: -89.9850 },
+  { zona: null,      municipio: 'Monjas',            departamento: 'Jalapa',       lat: 14.5003, lng: -89.8730 },
+  { zona: null,      municipio: 'San Pedro Pinula',  departamento: 'Jalapa',       lat: 14.6656, lng: -89.8492 },
+  { zona: 'Zona 10', municipio: 'Guatemala',         departamento: 'Guatemala',    lat: 14.6012, lng: -90.5113 },
+  { zona: 'Zona 15', municipio: 'Guatemala',         departamento: 'Guatemala',    lat: 14.5915, lng: -90.4880 },
+  { zona: null,      municipio: 'Mixco',             departamento: 'Guatemala',    lat: 14.6333, lng: -90.6064 },
+  { zona: null,      municipio: 'Antigua Guatemala', departamento: 'Sacatepéquez', lat: 14.5586, lng: -90.7295 },
+  { zona: null,      municipio: 'Jutiapa',           departamento: 'Jutiapa',      lat: 14.2917, lng: -89.8958 },
+  // Sin coordenadas: la ficha debe ubicar el mapa por la dirección
+  { zona: null,      municipio: 'Chiquimula',        departamento: 'Chiquimula',   lat: null,    lng: null },
 ];
 
 const TIPOS = ['casa', 'apartamento', 'terreno', 'local', 'oficina'];
@@ -45,7 +47,8 @@ const TITULOS = {
 
 function propiedadDePrueba(i, vendedorId, tiposPorNombre, estado) {
   const tipo      = TIPOS[i % TIPOS.length];
-  const ubicacion = UBICACIONES[i % UBICACIONES.length];
+  const { lat, lng, ...ubicacion } = UBICACIONES[i % UBICACIONES.length];
+  const desfase = (i % 7) * 0.0012; // separa un poco las propiedades de la misma zona
   const modalidad = i % 3 === 0 ? 'alquiler' : 'venta';
   const moneda    = i % 4 === 0 ? 'USD' : 'GTQ';
   const titulos   = TITULOS[tipo];
@@ -66,6 +69,8 @@ function propiedadDePrueba(i, vendedorId, tiposPorNombre, estado) {
     parqueos:          tipo === 'terreno' ? null : i % 3,
     direccion:         `Calle de prueba ${i + 1}, ${ubicacion.municipio}`,
     ...ubicacion,
+    latitud:           lat != null ? lat + desfase : null,
+    longitud:          lng != null ? lng - desfase : null,
     estado,
     paso_formulario:   4,
     // Fechas escalonadas: la #1 es la más reciente, así el orden del catálogo es predecible
@@ -103,23 +108,38 @@ async function main() {
 
   console.log(`🏠 Creando ${TOTAL_PUBLICADAS} propiedades publicadas...`);
   for (let i = 0; i < TOTAL_PUBLICADAS; i++) {
-    const conFoto = i % 3 !== 2;
-    await prisma.propiedad.create({
+    const totalFotos = i % 3 === 2 ? 0 : 1 + (i % 6);
+    const datos = propiedadDePrueba(i, vendedor.id, tiposPorNombre, 'publicado');
+    const propiedad = await prisma.propiedad.create({
       data: {
-        ...propiedadDePrueba(i, vendedor.id, tiposPorNombre, 'publicado'),
-        ...(conFoto && {
+        ...datos,
+        ...(totalFotos && {
           fotos: {
-            create: {
-              url:          `https://picsum.photos/seed/homescope-${i + 1}/800/600`,
-              public_id:    `seed-catalogo/${i + 1}`,
-              orden:        1,
-              es_portada:   true,
+            create: Array.from({ length: totalFotos }, (_, f) => ({
+              url:          `https://picsum.photos/seed/homescope-${i + 1}-${f + 1}/1200/800`,
+              public_id:    `seed-catalogo/${i + 1}-${f + 1}`,
+              orden:        f + 1,
+              es_portada:   f === 0,
               tamano_bytes: 0,
-            },
+            })),
           },
         }),
       },
     });
+
+    // Dos cambios de precio (una subida y una rebaja) que terminan en el precio actual
+    if (i % 5 === 0) {
+      const actual   = Number(datos.precio);
+      const inicial  = Math.round(actual * 1.1);
+      const intermedio = Math.round(actual * 1.15);
+      const haceDias = (d) => new Date(Date.now() - d * 24 * 60 * 60 * 1000);
+      await prisma.historialPrecio.createMany({
+        data: [
+          { propiedad_id: propiedad.id, precio_anterior: inicial,    precio_nuevo: intermedio, cambiado_por: vendedor.id, fecha_cambio: haceDias(40) },
+          { propiedad_id: propiedad.id, precio_anterior: intermedio, precio_nuevo: actual,     cambiado_por: vendedor.id, fecha_cambio: haceDias(10) },
+        ],
+      });
+    }
   }
 
   console.log('📝 Creando 3 en borrador y 2 pausadas (no deben verse en el catálogo)...');

@@ -1,11 +1,15 @@
 import { AppError } from '../../shared/errors/AppError.js';
 import { PropiedadesRepository } from './propiedades.repository.js';
 import { ComunicacionRepository } from '../comunicacion/comunicacion.repository.js';
+import { FavoritosRepository } from '../favoritos/favoritos.repository.js';
 import { TRANSICIONES, FOTOS_CONFIG } from './propiedades.schemas.js';
 import { storage } from '../../shared/adapters/storage/index.js';
 
 const repo            = new PropiedadesRepository();
 const comunicacionRepo = new ComunicacionRepository();
+const favoritosRepo    = new FavoritosRepository();
+
+const ROLES_ADMIN = ['administrador', 'admin'];
 
 export class PropiedadesService {
 
@@ -22,19 +26,27 @@ export class PropiedadesService {
     };
   }
 
-  async getById(propiedadId, solicitanteId = null) {
+  // solicitante: { id, roles } del token (o null si es un visitante)
+  async getById(propiedadId, solicitante = null) {
     const propiedad = await repo.buscarPorId(propiedadId);
     if (!propiedad) throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
 
-    // Solo el dueño puede ver borradores/pausadas propias
-    if (propiedad.estado !== 'publicado' && propiedad.vendedor.id !== solicitanteId)
+    const solicitanteId = solicitante?.id ?? null;
+    const esDueno = solicitanteId === propiedad.vendedor.id;
+    const esAdmin = solicitante?.roles?.some((r) => ROLES_ADMIN.includes(r)) ?? false;
+
+    // Las no publicadas solo las ven su dueño y el administrador; para los demás no existen
+    if (propiedad.estado !== 'publicado' && !esDueno && !esAdmin)
       throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
 
     const { vendedor, ...resto } = propiedad;
     const contactoVisible =
       solicitanteId &&
-      solicitanteId !== vendedor.id &&
+      !esDueno &&
       (await comunicacionRepo.existeConversacion(propiedadId, solicitanteId));
+    const esFavorito = solicitanteId && !esDueno
+      ? Boolean(await favoritosRepo.existe(solicitanteId, propiedadId))
+      : false;
 
     return {
       ...resto,
@@ -42,8 +54,18 @@ export class PropiedadesService {
         id:       vendedor.id,
         nombre:   vendedor.nombre,
         apellido: vendedor.apellido,
+        foto_url: vendedor.foto_url,
+        // TODO: tomar de verificacion_vendedor y de las reseñas cuando existan esos módulos
+        verificado:            false,
+        calificacion_promedio: null,
+        total_resenas:         0,
         ...(contactoVisible && { email: vendedor.email, telefono: vendedor.telefono }),
       },
+      // TODO: índice vigente y puntos de interés precalculados de geo-indice (ADR-08); null = "índice en cálculo"
+      indice_conveniencia: null,
+      puntos_interes:      [],
+      es_dueno:            esDueno,
+      es_favorito:         esFavorito,
     };
   }
 
