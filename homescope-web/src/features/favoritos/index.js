@@ -1,2 +1,2 @@
-// TODO: Implementar feature favoritos
-// Componentes: ListaFavoritos, Comparador
+// TODO: Componentes pendientes: ListaFavoritos, Comparador
+export { useToggleFavorito } from './hooks/useToggleFavorito';

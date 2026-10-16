@@ -15,7 +15,7 @@ export default function Semaforo({ puntaje, className = '' }) {
   const nivel = nivelIndice(puntaje);
   const descripcion = nivel
     ? `Índice de Conveniencia ${nivel.etiqueta.toLowerCase()}: ${Math.round(puntaje)} de 100`
-    : 'Índice de Conveniencia sin calcular';
+    : 'Índice de Conveniencia en cálculo';
 
   return (
     <span
@@ -33,7 +33,7 @@ export default function Semaforo({ puntaje, className = '' }) {
         ))}
       </span>
       <span aria-hidden="true" className={nivel ? nivel.texto : 'text-secondary-500'}>
-        {nivel ? `${nivel.etiqueta} · ${Math.round(puntaje)}` : 'Índice sin calcular'}
+        {nivel ? `${nivel.etiqueta} · ${Math.round(puntaje)}` : 'Índice en cálculo'}
       </span>
     </span>
   );

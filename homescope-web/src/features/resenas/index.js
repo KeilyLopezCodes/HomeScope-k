@@ -1,2 +1,2 @@
-// TODO: Implementar feature resenas
-// Componentes: ListaResenas, FormularioResena, ComentariosZona
+// TODO: Componentes pendientes: ListaResenas, FormularioResena, ComentariosZona
+export { default as ResenasPropiedad } from './components/ResenasPropiedad';

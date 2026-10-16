@@ -49,5 +49,7 @@ export async function apiClient(path, options = {}) {
     throw error;
   }
 
-  return res.json();
+  // 201/204 sin cuerpo (p. ej. favoritos) → null en lugar de fallar al parsear
+  const texto = await res.text();
+  return texto ? JSON.parse(texto) : null;
 }

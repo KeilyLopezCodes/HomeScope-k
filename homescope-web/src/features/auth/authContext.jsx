@@ -54,6 +54,9 @@ export function AuthProvider({ children }) {
     try { return !sessionStorage.getItem(SESSION_KEY); }
     catch { return true; }
   });
+  // El usuario se restaura de sessionStorage al instante, pero el token (en memoria) llega con el refresh.
+  // Las consultas cuya respuesta depende de la sesión esperan a este flag.
+  const [sesionVerificada, setSesionVerificada] = useState(DEV_MODE);
   const refreshed = useRef(false);
   const sesionCerrada = useRef(false);
 
@@ -88,6 +91,7 @@ export function AuthProvider({ children }) {
         setUser(null);
       } finally {
         setLoading(false);
+        setSesionVerificada(true);
       }
     }
     restaurarSesion();
@@ -147,7 +151,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      user, loading, roles, permisos,
+      user, loading, sesionVerificada, roles, permisos,
       tienePermiso, signIn, signOut, updateUser,
       // solo disponible en dev
       ...(DEV_MODE && { mockSignIn, MOCK_USERS }),

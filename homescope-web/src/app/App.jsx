@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, VerificarCorreoPage, useAuth } from '../features/auth';
 import { PerfilPage } from '../features/perfil';
-import { PublicarPropiedadPage, CatalogoPage } from '../features/propiedades';
+import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage } from '../features/propiedades';
 import MainLayout from '../shared/components/MainLayout';
 import ComingSoonPage from '../shared/pages/ComingSoonPage';
 import NotFoundPage from '../shared/pages/NotFoundPage';
@@ -55,7 +55,7 @@ export default function App() {
 
         {/* Públicas */}
         <Route path="/propiedades"      element={<MainLayout><CatalogoPage /></MainLayout>} />
-        <Route path="/propiedades/:id" element={<MainLayout><ComingSoonPage /></MainLayout>} />
+        <Route path="/propiedades/:id" element={<MainLayout><PropiedadDetallePage /></MainLayout>} />
         <Route path="/mapa"             element={<MainLayout><ComingSoonPage /></MainLayout>} />
 
         {/* Protegidas — cualquier usuario autenticado */}

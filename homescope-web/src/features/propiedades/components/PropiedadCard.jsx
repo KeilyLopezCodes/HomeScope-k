@@ -1,32 +1,19 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Home, MapPin } from 'lucide-react';
 import { Badge } from '../../../shared/components/ui';
 import { Semaforo } from '../../indice';
-
-const MODALIDAD = {
-  venta:    { etiqueta: 'Venta',    variant: 'primary' },
-  alquiler: { etiqueta: 'Alquiler', variant: 'success' },
-};
-
-function formatearPrecio(precio, moneda) {
-  return new Intl.NumberFormat('es-GT', {
-    style: 'currency', currency: moneda, maximumFractionDigits: 0,
-  }).format(Number(precio));
-}
-
-// Zona, municipio y departamento si existen; si no, la dirección
-function ubicacionResumida({ zona, municipio, departamento, direccion }) {
-  const partes = [zona, municipio, departamento].filter(Boolean);
-  return partes.length ? partes.join(', ') : direccion;
-}
+import { MODALIDAD, formatearPrecio, ubicacionResumida } from '../utils/formato';
 
 export default function PropiedadCard({ propiedad }) {
   const portada   = propiedad.fotos?.[0]?.url;
   const modalidad = MODALIDAD[propiedad.modalidad];
+  // La ficha usa `desde` para que "Volver" regrese a la misma página del catálogo
+  const { pathname, search } = useLocation();
 
   return (
     <Link
       to={`/propiedades/${propiedad.id}`}
+      state={{ desde: pathname + search }}
       className="group flex flex-col overflow-hidden rounded-lg border border-secondary-200 bg-white shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-secondary-100">

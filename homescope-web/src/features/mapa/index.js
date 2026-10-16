@@ -1,3 +1,2 @@
-// TODO: Implementar feature mapa
-// Componentes: MapaInteractivo, VistasSatelite, StreetView, MarcadoresPropiedades
-// Usa Maps JavaScript API cargada en el cliente con VITE_GOOGLE_MAPS_BROWSER_KEY
+// TODO: Componentes pendientes: MapaInteractivo, MarcadoresPropiedades (Maps JavaScript API)
+export { default as MapaPropiedad } from './components/MapaPropiedad';
