@@ -1,4 +1,5 @@
 import { Input, Textarea, Select } from '../../../shared/components/ui';
+import { SelectorUbicacion } from '../../mapa';
 
 const DEPARTAMENTOS = [
   'Alta Verapaz','Baja Verapaz','Chimaltenango','Chiquimula','El Progreso',
@@ -7,7 +8,39 @@ const DEPARTAMENTOS = [
   'San Marcos','Santa Rosa','Sololá','Suchitepéquez','Totonicapán','Zacapa',
 ];
 
-export default function StepUbicacion({ register, errors }) {
+const sinTildes = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+// Google puede devolver "Sacatepequez" o "Departamento de Jalapa": se busca en la lista del select
+const departamentoDeLista = (nombre) =>
+  nombre ? DEPARTAMENTOS.find((d) => sinTildes(d) === sinTildes(nombre)) : undefined;
+
+const OPCIONES_CAMPO = { shouldValidate: true, shouldDirty: true };
+
+export default function StepUbicacion({ register, errors, setValue, watch }) {
+  const [latitud, longitud, direccion, zona, municipio, departamento] =
+    watch(['latitud', 'longitud', 'direccion', 'zona', 'municipio', 'departamento']);
+
+  const lat = latitud === '' || latitud == null ? NaN : Number(latitud);
+  const lng = longitud === '' || longitud == null ? NaN : Number(longitud);
+  const posicion = Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+
+  function alPosicion({ lat, lng }) {
+    setValue('latitud',  Number(lat.toFixed(6)), OPCIONES_CAMPO);
+    setValue('longitud', Number(lng.toFixed(6)), OPCIONES_CAMPO);
+  }
+
+  // Solo se reemplazan los campos que la geocodificación sí trajo
+  function alDireccion(datos) {
+    if (datos.direccion) setValue('direccion', datos.direccion, OPCIONES_CAMPO);
+    if (datos.zona)      setValue('zona', datos.zona, OPCIONES_CAMPO);
+    if (datos.municipio) setValue('municipio', datos.municipio, OPCIONES_CAMPO);
+    const depto = departamentoDeLista(datos.departamento);
+    if (depto) setValue('departamento', depto, OPCIONES_CAMPO);
+  }
+
+  const direccionEscrita = [direccion, zona, municipio, departamento]
+    .map((p) => p?.trim()).filter(Boolean).join(', ');
+
   return (
     <div className="space-y-4">
       <h2 className="text-base font-semibold text-secondary-800">Ubicación</h2>
@@ -46,6 +79,13 @@ export default function StepUbicacion({ register, errors }) {
         placeholder="Calle, zona, colonia…"
         error={errors.direccion?.message}
         {...register('direccion', { required: 'La dirección es obligatoria' })}
+      />
+
+      <SelectorUbicacion
+        posicion={posicion}
+        onPosicion={alPosicion}
+        onDireccion={alDireccion}
+        direccionEscrita={direccionEscrita && `${direccionEscrita}, Guatemala`}
       />
 
       <div className="grid grid-cols-2 gap-4">

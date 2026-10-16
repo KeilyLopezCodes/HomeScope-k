@@ -31,7 +31,7 @@ export default function PublicarPropiedadPage() {
 
   const {
     register, handleSubmit, trigger,
-    setValue, getValues, reset,
+    setValue, getValues, reset, watch,
     formState: { errors },
   } = useForm({ mode: 'onTouched' });
 
@@ -138,7 +138,9 @@ export default function PublicarPropiedadPage() {
                 getValues={getValues}
               />
             )}
-            {step === 2 && <StepUbicacion register={register} errors={errors} />}
+            {step === 2 && (
+              <StepUbicacion register={register} errors={errors} setValue={setValue} watch={watch} />
+            )}
             {step === 3 && <StepConfirmacion getValues={getValues} />}
           </Card>
 

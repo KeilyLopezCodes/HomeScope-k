@@ -1,9 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ExternalLink, MapPinOff } from 'lucide-react';
-
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY;
-// El .env.example trae un valor de ejemplo: sin una clave real se usa el embed público de Google Maps
-const HAY_CLAVE = Boolean(API_KEY) && API_KEY !== 'your_browser_key';
+import MapaInteractivo from './MapaInteractivo';
+import { HAY_CLAVE, posicionDesdeDireccion } from '../services/googleMaps';
 
 const VISTAS = [
   { id: 'mapa',     etiqueta: 'Mapa' },
@@ -11,14 +9,9 @@ const VISTAS = [
   { id: 'street',   etiqueta: 'Street View' },
 ];
 
+// Respaldo sin clave de Google: el embed público no necesita API key
 function urlEmbed(vista, { lat, lng, consulta }) {
   const lugar = encodeURIComponent(lat != null ? `${lat},${lng}` : consulta);
-  if (HAY_CLAVE) {
-    const base = 'https://www.google.com/maps/embed/v1';
-    if (vista === 'street') return `${base}/streetview?key=${API_KEY}&location=${lat},${lng}`;
-    const tipo = vista === 'satelite' ? 'satellite' : 'roadmap';
-    return `${base}/place?key=${API_KEY}&q=${lugar}&zoom=16&maptype=${tipo}`;
-  }
   return `https://maps.google.com/maps?q=${lugar}&t=${vista === 'satelite' ? 'k' : 'm'}&z=16&output=embed`;
 }
 
@@ -26,24 +19,53 @@ function urlEmbed(vista, { lat, lng, consulta }) {
 const urlStreetViewExterna = (lat, lng) =>
   `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 
+function SinUbicacion() {
+  return (
+    <div className="flex aspect-[16/9] flex-col items-center justify-center gap-2 rounded-md bg-secondary-100 text-secondary-400">
+      <MapPinOff size={32} strokeWidth={1.5} aria-hidden="true" />
+      <p className="text-sm">Ubicación no disponible</p>
+    </div>
+  );
+}
+
+// Con clave: mapa interactivo de la Maps JavaScript API. Si la propiedad no tiene coordenadas,
+// se ubica geocodificando la dirección.
+function MapaConClave({ lat, lng, direccion, titulo }) {
+  const tieneCoordenadas = lat != null && lng != null;
+  const [posicion, setPosicion] = useState(tieneCoordenadas ? { lat, lng } : null);
+  const [buscando, setBuscando] = useState(!tieneCoordenadas && Boolean(direccion));
+
+  useEffect(() => {
+    if (tieneCoordenadas) { setPosicion({ lat, lng }); return; }
+    if (!direccion) return;
+    let activo = true;
+    posicionDesdeDireccion(`${direccion}, Guatemala`)
+      .then((p) => activo && setPosicion(p))
+      .catch(() => {})
+      .finally(() => activo && setBuscando(false));
+    return () => { activo = false; };
+  }, [lat, lng, direccion, tieneCoordenadas]);
+
+  if (!buscando && !posicion) return <SinUbicacion />;
+  return <MapaInteractivo posicion={posicion} titulo={titulo} />;
+}
+
 export default function MapaPropiedad({ latitud, longitud, direccion, titulo }) {
-  const [vista, setVista] = useState('mapa');
   const lat = latitud != null ? Number(latitud) : null;
   const lng = longitud != null ? Number(longitud) : null;
-  const tieneCoordenadas = lat != null && lng != null;
 
-  if (!tieneCoordenadas && !direccion) {
-    return (
-      <div className="flex aspect-[16/9] flex-col items-center justify-center gap-2 rounded-md bg-secondary-100 text-secondary-400">
-        <MapPinOff size={32} strokeWidth={1.5} aria-hidden="true" />
-        <p className="text-sm">Ubicación no disponible</p>
-      </div>
-    );
-  }
+  if ((lat == null || lng == null) && !direccion) return <SinUbicacion />;
+  if (HAY_CLAVE) return <MapaConClave lat={lat} lng={lng} direccion={direccion} titulo={titulo} />;
+  return <MapaEmbebido lat={lat} lng={lng} direccion={direccion} titulo={titulo} />;
+}
+
+function MapaEmbebido({ lat, lng, direccion, titulo }) {
+  const [vista, setVista] = useState('mapa');
+  const tieneCoordenadas = lat != null && lng != null;
 
   // Street View necesita coordenadas exactas
   const vistas = tieneCoordenadas ? VISTAS : VISTAS.filter((v) => v.id !== 'street');
-  const streetExterno = vista === 'street' && !HAY_CLAVE;
+  const streetExterno = vista === 'street';
 
   return (
     <div>
