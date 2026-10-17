@@ -19,7 +19,8 @@ function validar(schema, datos) {
 export async function buscarPuntosInteres(req, res, next) {
   try {
     const query = validar(puntosInteresSchema, req.query);
-    res.json(await service.buscarPuntosInteres(query));
+    const resultado = await service.buscarPuntosInteres(query);
+    res.set('X-Cache', resultado.desde_cache ? 'HIT' : 'MISS').json(resultado);
   } catch (err) { next(err); }
 }
 

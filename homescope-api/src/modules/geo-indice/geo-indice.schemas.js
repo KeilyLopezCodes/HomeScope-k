@@ -11,15 +11,21 @@ export const CATEGORIAS_INTERES = {
   areas_verdes: { nombre: 'Áreas verdes', tipos: ['park', 'national_park', 'playground', 'hiking_area'] },
 };
 
-// Radio por defecto de la arquitectura: una consulta de 2 km por categoría
-export const RADIO_DEFECTO_M = 2000;
+// Radios permitidos en metros. A Google siempre se le consulta el mayor (2 km por categoría, según la
+// arquitectura) y los menores se filtran por distancia, así un mismo resultado sirve para los tres.
+export const RADIOS_PERMITIDOS = [500, 1000, 2000];
+export const RADIO_CONSULTA_M  = Math.max(...RADIOS_PERMITIDOS);
 
 const CODIGOS = Object.keys(CATEGORIAS_INTERES);
 
 export const puntosInteresSchema = z.object({
   lat:   z.coerce.number().min(-90).max(90),
   lng:   z.coerce.number().min(-180).max(180),
-  radio: z.coerce.number().int().min(100).max(5000).default(RADIO_DEFECTO_M),
+  radio: z.coerce.number({ invalid_type_error: `El radio debe ser uno de: ${RADIOS_PERMITIDOS.join(', ')} (metros)` })
+    .refine((r) => RADIOS_PERMITIDOS.includes(r), {
+      message: `El radio debe ser uno de: ${RADIOS_PERMITIDOS.join(', ')} (metros)`,
+    })
+    .default(RADIO_CONSULTA_M),
   // ?categorias=salud,educacion  → solo esas; sin el parámetro, todas
   categorias: z.string().optional()
     .transform((v) => (v ? [...new Set(v.split(',').map((c) => c.trim()).filter(Boolean))] : CODIGOS))
