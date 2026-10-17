@@ -1,15 +1,6 @@
 import { Loader2 } from 'lucide-react';
 import Semaforo, { nivelIndice } from './Semaforo';
-
-// Categorías del desglose (RNF-10), en el orden del wireframe
-export const CATEGORIAS = {
-  educacion:    'Educación',
-  salud:        'Salud',
-  comercio:     'Comercio',
-  transporte:   'Transporte',
-  seguridad:    'Seguridad',
-  areas_verdes: 'Áreas verdes',
-};
+import { CATEGORIAS } from '../config/categorias';
 
 // indice: { puntaje, subpuntajes: [{ categoria, puntaje }] } o null mientras se calcula
 export default function IndiceConveniencia({ indice }) {
@@ -46,7 +37,7 @@ export default function IndiceConveniencia({ indice }) {
         <dl className="mt-4 grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
           {indice.subpuntajes.map(({ categoria, puntaje }) => (
             <div key={categoria} className="grid grid-cols-[6.5rem_1fr_2rem] items-center gap-2 text-sm">
-              <dt className="text-secondary-600">{CATEGORIAS[categoria] ?? categoria}</dt>
+              <dt className="text-secondary-600">{CATEGORIAS[categoria]?.nombre ?? categoria}</dt>
               <dd className="h-2 overflow-hidden rounded-full bg-secondary-100" aria-hidden="true">
                 <div
                   className={['h-full rounded-full', nivelIndice(puntaje)?.luz ?? nivel.luz].join(' ')}

@@ -30,7 +30,7 @@ function SinUbicacion() {
 
 // Con clave: mapa interactivo de la Maps JavaScript API. Si la propiedad no tiene coordenadas,
 // se ubica geocodificando la dirección.
-function MapaConClave({ lat, lng, direccion, titulo }) {
+function MapaConClave({ lat, lng, direccion, titulo, marcadores, radio }) {
   const tieneCoordenadas = lat != null && lng != null;
   const [posicion, setPosicion] = useState(tieneCoordenadas ? { lat, lng } : null);
   const [buscando, setBuscando] = useState(!tieneCoordenadas && Boolean(direccion));
@@ -47,15 +47,18 @@ function MapaConClave({ lat, lng, direccion, titulo }) {
   }, [lat, lng, direccion, tieneCoordenadas]);
 
   if (!buscando && !posicion) return <SinUbicacion />;
-  return <MapaInteractivo posicion={posicion} titulo={titulo} />;
+  return <MapaInteractivo posicion={posicion} titulo={titulo} marcadores={marcadores} radio={radio} />;
 }
 
-export default function MapaPropiedad({ latitud, longitud, direccion, titulo }) {
+// marcadores y radio (puntos de interés) solo se dibujan con la Maps JavaScript API; el embed sin clave no los admite
+export default function MapaPropiedad({ latitud, longitud, direccion, titulo, marcadores, radio }) {
   const lat = latitud != null ? Number(latitud) : null;
   const lng = longitud != null ? Number(longitud) : null;
 
   if ((lat == null || lng == null) && !direccion) return <SinUbicacion />;
-  if (HAY_CLAVE) return <MapaConClave lat={lat} lng={lng} direccion={direccion} titulo={titulo} />;
+  if (HAY_CLAVE) {
+    return <MapaConClave lat={lat} lng={lng} direccion={direccion} titulo={titulo} marcadores={marcadores} radio={radio} />;
+  }
   return <MapaEmbebido lat={lat} lng={lng} direccion={direccion} titulo={titulo} />;
 }
 

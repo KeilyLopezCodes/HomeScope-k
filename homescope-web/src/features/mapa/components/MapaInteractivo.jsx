@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useGoogleMaps } from '../hooks/useGoogleMaps';
 import { CENTRO_GUATEMALA, MAP_ID, aLiteral } from '../services/googleMaps';
@@ -12,12 +13,44 @@ const VISTAS = [
 // Distancia máxima entre la propiedad y el panorama más cercano (las casas suelen estar retiradas de la calle)
 const RADIO_STREET_VIEW = 150;
 
+// Círculo de color con el icono de la categoría, como contenido de un AdvancedMarkerElement
+function crearIconoPunto({ color, Icono, titulo }) {
+  const elemento = document.createElement('div');
+  elemento.setAttribute('aria-label', titulo);
+  Object.assign(elemento.style, {
+    width: '28px', height: '28px', borderRadius: '9999px', background: color, color: '#fff',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: '2px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,.35)', cursor: 'pointer',
+  });
+  const root = createRoot(elemento);
+  root.render(createElement(Icono, { size: 15, strokeWidth: 2.25, 'aria-hidden': true }));
+  return { elemento, root };
+}
+
+// Contenido de la ventana de información, con textContent: los nombres vienen de Google
+function contenidoInfo({ titulo, detalle }) {
+  const caja = document.createElement('div');
+  caja.style.cssText = 'font: 13px system-ui, sans-serif; max-width: 220px';
+  const nombre = document.createElement('p');
+  nombre.style.cssText = 'font-weight: 600; margin: 0 0 2px';
+  nombre.textContent = titulo;
+  const linea = document.createElement('p');
+  linea.style.cssText = 'margin: 0; color: #4b5563';
+  linea.textContent = detalle ?? '';
+  caja.append(nombre, linea);
+  return caja;
+}
+
 const mismaPosicion = (a, b) =>
   a && b && Math.abs(a.lat - b.lat) < 1e-7 && Math.abs(a.lng - b.lng) < 1e-7;
 
 // posicion: { lat, lng } o null. Con `arrastrable`, el marcador se mueve arrastrándolo
 // o haciendo clic en el mapa, y cada cambio se informa con onMover({ lat, lng }).
-export default function MapaInteractivo({ posicion, arrastrable = false, onMover, titulo = 'Ubicación' }) {
+// marcadores: puntos adicionales [{ id, lat, lng, titulo, detalle, color, Icono }] (p. ej. puntos de interés)
+// radio: en metros; dibuja el círculo de búsqueda alrededor de `posicion` y ajusta el zoom para verlo completo
+export default function MapaInteractivo({
+  posicion, arrastrable = false, onMover, titulo = 'Ubicación', marcadores = [], radio = null,
+}) {
   const { maps, error } = useGoogleMaps();
   const divMapa   = useRef(null);
   const divStreet = useRef(null);
@@ -25,6 +58,7 @@ export default function MapaInteractivo({ posicion, arrastrable = false, onMover
   const marcador  = useRef(null);
   const panorama  = useRef(null);
   const marcadorStreet = useRef(null);
+  const infoWindow = useRef(null);
   const onMoverRef = useRef(onMover);
   onMoverRef.current = onMover;
 
@@ -50,6 +84,7 @@ export default function MapaInteractivo({ posicion, arrastrable = false, onMover
       position: posicion,
       title: titulo,
       gmpDraggable: arrastrable,
+      zIndex: 1000, // la propiedad siempre por encima de los puntos de interés
     });
 
     if (arrastrable) {
@@ -73,6 +108,52 @@ export default function MapaInteractivo({ posicion, arrastrable = false, onMover
     mapa.current.panTo(posicion);
     if (mapa.current.getZoom() < 15) mapa.current.setZoom(17);
   }, [maps, posicion?.lat, posicion?.lng]);
+
+  // Marcadores adicionales: se reemplazan completos cada vez que cambia la lista
+  useEffect(() => {
+    if (!maps || !mapa.current || !marcadores.length) return;
+    infoWindow.current ??= new maps.InfoWindow();
+
+    const creados = marcadores.map((m) => {
+      const { elemento, root } = crearIconoPunto(m);
+      const marker = new maps.AdvancedMarkerElement({
+        map: mapa.current,
+        position: { lat: m.lat, lng: m.lng },
+        title: m.titulo,
+        content: elemento,
+      });
+      marker.addListener('click', () => {
+        infoWindow.current.setContent(contenidoInfo(m));
+        infoWindow.current.open({ map: mapa.current, anchor: marker });
+      });
+      return { marker, root };
+    });
+
+    return () => {
+      infoWindow.current?.close();
+      creados.forEach(({ marker }) => { marker.map = null; });
+      // Desmontar fuera del commit de React para evitar el aviso de "unmount durante el render"
+      setTimeout(() => creados.forEach(({ root }) => root.unmount()));
+    };
+  }, [maps, marcadores]);
+
+  // Círculo del radio de búsqueda
+  useEffect(() => {
+    if (!maps || !mapa.current || !radio || !posicion) return;
+    const circulo = new maps.Circle({
+      map: mapa.current,
+      center: posicion,
+      radius: radio,
+      strokeColor: '#2563eb',
+      strokeOpacity: 0.6,
+      strokeWeight: 1.5,
+      fillColor: '#2563eb',
+      fillOpacity: 0.05,
+      clickable: false,
+    });
+    mapa.current.fitBounds(circulo.getBounds(), 8);
+    return () => circulo.setMap(null);
+  }, [maps, radio, posicion?.lat, posicion?.lng]);
 
   // Mapa / satélite / Street View
   useEffect(() => {

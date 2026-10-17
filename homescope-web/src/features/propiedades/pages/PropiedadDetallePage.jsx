@@ -4,8 +4,7 @@ import { AlertCircle, AlertTriangle, ArrowLeft, Bath, BedDouble, Car, MapPin, Ru
 import { Badge, Button, EmptyState, Spinner } from '../../../shared/components/ui';
 import NotFoundPage from '../../../shared/pages/NotFoundPage';
 import { useAuth } from '../../auth';
-import { IndiceConveniencia, PuntosInteres, Semaforo } from '../../indice';
-import { MapaPropiedad } from '../../mapa';
+import { IndiceConveniencia, SeccionPuntosInteres, Semaforo } from '../../indice';
 import { ResenasPropiedad } from '../../resenas';
 import GaleriaFotos from '../components/GaleriaFotos';
 import HistorialPrecios from '../components/HistorialPrecios';
@@ -157,18 +156,7 @@ export default function PropiedadDetallePage() {
           <IndiceConveniencia indice={propiedad.indice_conveniencia} />
 
           <Seccion titulo="Ubicación y puntos de interés">
-            <p className="mb-3 flex items-start gap-1 text-sm text-secondary-600">
-              <MapPin size={16} className="mt-0.5 shrink-0" aria-hidden="true" /> {ubicacionCompleta}
-            </p>
-            <MapaPropiedad
-              latitud={propiedad.latitud}
-              longitud={propiedad.longitud}
-              direccion={ubicacionCompleta}
-              titulo={propiedad.titulo}
-            />
-            <div className="mt-4">
-              <PuntosInteres puntos={propiedad.puntos_interes} />
-            </div>
+            <SeccionPuntosInteres propiedad={propiedad} direccion={ubicacionCompleta} />
           </Seccion>
 
           <Seccion titulo="Descripción">

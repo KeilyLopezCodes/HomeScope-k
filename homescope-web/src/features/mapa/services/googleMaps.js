@@ -27,13 +27,13 @@ export function cargarGoogleMaps() {
     document.head.appendChild(script);
   }).then(async () => {
     const { importLibrary } = window.google.maps;
-    const [{ Map }, { AdvancedMarkerElement, Marker }, streetView, { Geocoder }, { spherical }] =
+    const [{ Map, Circle, InfoWindow }, { AdvancedMarkerElement, Marker }, streetView, { Geocoder }, { spherical }] =
       await Promise.all([
         importLibrary('maps'), importLibrary('marker'), importLibrary('streetView'),
         importLibrary('geocoding'), importLibrary('geometry'),
       ]);
     return {
-      Map, AdvancedMarkerElement, Marker, spherical,
+      Map, Circle, InfoWindow, AdvancedMarkerElement, Marker, spherical,
       StreetViewPanorama: streetView.StreetViewPanorama,
       StreetViewService:  streetView.StreetViewService,
       StreetViewSource:   streetView.StreetViewSource,
