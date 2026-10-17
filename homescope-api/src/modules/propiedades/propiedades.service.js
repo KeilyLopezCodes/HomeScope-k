@@ -2,14 +2,46 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { PropiedadesRepository } from './propiedades.repository.js';
 import { ComunicacionRepository } from '../comunicacion/comunicacion.repository.js';
 import { FavoritosRepository } from '../favoritos/favoritos.repository.js';
+import { GeoIndiceRepository } from '../geo-indice/geo-indice.repository.js';
 import { TRANSICIONES, FOTOS_CONFIG } from './propiedades.schemas.js';
 import { storage } from '../../shared/adapters/storage/index.js';
+import { jobs } from '../../shared/adapters/jobs.adapter.js';
+import { CALCULAR_INDICE, OPCIONES_CALCULAR_INDICE } from '../../jobs/trabajos.js';
 
 const repo            = new PropiedadesRepository();
 const comunicacionRepo = new ComunicacionRepository();
 const favoritosRepo    = new FavoritosRepository();
+const geoIndiceRepo    = new GeoIndiceRepository();
 
 const ROLES_ADMIN = ['administrador', 'admin'];
+
+// Índice vigente → forma pública. Sin desglose para el catálogo, con desglose para la ficha (RNF-10)
+function formatearIndice(fila) {
+  if (!fila) return null;
+  return {
+    puntaje:           Number(fila.puntaje_total),
+    nivel:             fila.nivel_semaforo,
+    version_algoritmo: fila.version_algoritmo,
+    fecha_calculo:     fila.fecha_calculo,
+    ...(fila.sub_puntajes && {
+      radio_m:     fila.radio_m,
+      subpuntajes: fila.sub_puntajes.map((s) => ({
+        categoria:          s.categoria.nombre,
+        peso:               Number(s.categoria.peso),
+        puntaje:            Number(s.puntaje),
+        cantidad_puntos:    s.cantidad_puntos,
+        distancia_minima_m: s.distancia_minima_m,
+      })),
+    }),
+  };
+}
+
+// ¿Cambió una coordenada? (Decimal de Prisma vs número del body; null cuenta como valor)
+function coordenadaCambio(nueva, actual) {
+  if (nueva === undefined) return false;
+  if (nueva == null || actual == null) return (nueva == null) !== (actual == null);
+  return Math.abs(Number(nueva) - Number(actual)) > 1e-7;
+}
 
 export class PropiedadesService {
 
@@ -17,9 +49,10 @@ export class PropiedadesService {
 
   async listar({ page, pageSize }) {
     const { items, total } = await repo.listar({ page, pageSize });
+    const indices = await geoIndiceRepo.indicesVigentes(items.map((p) => p.id));
     return {
-      // TODO: tomar el índice vigente cuando geo-indice lo calcule; mientras tanto el semáforo queda "sin calcular"
-      data: items.map((p) => ({ ...p, indice_conveniencia: null })),
+      // Sin índice vigente → null: el semáforo de la tarjeta muestra "en cálculo"
+      data: items.map((p) => ({ ...p, indice_conveniencia: formatearIndice(indices.get(p.id)) })),
       total,
       page,
       pageSize,
@@ -43,6 +76,9 @@ export class PropiedadesService {
     const esFavorito = solicitanteId && !esDueno
       ? Boolean(await favoritosRepo.existe(solicitanteId, propiedadId))
       : false;
+    const indice = formatearIndice(
+      (await geoIndiceRepo.indicesVigentes([propiedadId], { desglose: true })).get(propiedadId));
+    const sinUbicacion = propiedad.latitud == null || propiedad.longitud == null;
 
     return {
       ...resto,
@@ -57,9 +93,10 @@ export class PropiedadesService {
         total_resenas:         0,
         ...(contactoVisible && { email: vendedor.email, telefono: vendedor.telefono }),
       },
-      // TODO: índice vigente precalculado de geo-indice (ADR-08); null = "índice en cálculo".
-      // Los puntos de interés se piden aparte: GET /geo/propiedades/:id/puntos-interes
-      indice_conveniencia: null,
+      // Índice precalculado por el trabajo calcular-indice (ADR-08). Los puntos de interés de la ficha
+      // se piden aparte: GET /geo/propiedades/:id/puntos-interes
+      indice_conveniencia: indice,
+      indice_estado:       indice ? 'calculado' : sinUbicacion ? 'sin_ubicacion' : 'en_calculo',
       es_dueno:            esDueno,
       es_favorito:         esFavorito,
     };
@@ -74,6 +111,17 @@ export class PropiedadesService {
     if (propiedad.latitud == null || propiedad.longitud == null)
       throw new AppError('SIN_UBICACION', 'La propiedad no tiene coordenadas registradas', 422);
     return { lat: Number(propiedad.latitud), lng: Number(propiedad.longitud) };
+  }
+
+  // Datos que necesita el cálculo del índice (trabajo interno, sin regla de visibilidad)
+  async datosParaIndice(propiedadId) {
+    const propiedad = await repo.buscarUbicacion(propiedadId);
+    if (!propiedad) return null;
+    return {
+      estado: propiedad.estado,
+      lat:    propiedad.latitud  != null ? Number(propiedad.latitud)  : null,
+      lng:    propiedad.longitud != null ? Number(propiedad.longitud) : null,
+    };
   }
 
   async listarMias(usuarioId) {
@@ -120,7 +168,16 @@ export class PropiedadesService {
       );
     }
 
-    return repo.actualizar(propiedadId, datos);
+    const actualizada = await repo.actualizar(propiedadId, datos);
+
+    // Si cambió la ubicación de una propiedad publicada, se recalcula su índice (RF-17).
+    // Las no publicadas se calculan al publicarse.
+    const cambioUbicacion = coordenadaCambio(datos.latitud, propiedad.latitud)
+      || coordenadaCambio(datos.longitud, propiedad.longitud);
+    const recalculando = cambioUbicacion && propiedad.estado === 'publicado'
+      && await this._encolarIndice(propiedadId);
+
+    return { ...actualizada, recalculando_indice: Boolean(recalculando) };
   }
 
   async eliminar(propiedadId, usuarioId) {
@@ -202,17 +259,33 @@ export class PropiedadesService {
   async publicar(propiedadId, usuarioId) {
     const propiedad = await this._verificarDueno(propiedadId, usuarioId);
     this._validarTransicion(propiedad.estado, 'publicado');
-    return repo.cambiarEstado(propiedadId, 'publicado');
+    const publicada = await repo.cambiarEstado(propiedadId, 'publicado');
+    await this._encolarIndice(propiedadId);
+    return publicada;
   }
 
   // PATCH /propiedades/:id/estado  → cualquier transición válida
   async cambiarEstado(propiedadId, nuevoEstado, usuarioId) {
     const propiedad = await this._verificarDueno(propiedadId, usuarioId);
     this._validarTransicion(propiedad.estado, nuevoEstado);
-    return repo.cambiarEstado(propiedadId, nuevoEstado);
+    const actualizada = await repo.cambiarEstado(propiedadId, nuevoEstado);
+    if (nuevoEstado === 'publicado') await this._encolarIndice(propiedadId);
+    return actualizada;
   }
 
   // ── Helpers privados ───────────────────────────────────────────────────────
+
+  // Encola el cálculo del índice. Si la cola falla no se interrumpe la operación del usuario:
+  // la propiedad queda con el índice "en cálculo" y se puede recalcular con `npm run indice:recalcular`.
+  async _encolarIndice(propiedadId) {
+    try {
+      await jobs.enqueue(CALCULAR_INDICE, { propiedadId }, OPCIONES_CALCULAR_INDICE(propiedadId));
+      return true;
+    } catch (err) {
+      console.error(`No se pudo encolar el índice de la propiedad ${propiedadId}:`, err.message);
+      return false;
+    }
+  }
 
   // Las no publicadas solo las ven su dueño y el administrador; para los demás no existen
   _verificarVisible(estado, vendedorId, solicitante) {

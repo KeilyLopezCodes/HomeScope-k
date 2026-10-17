@@ -57,9 +57,12 @@ const router = Router();
  *                       indice_conveniencia:
  *                         type: object
  *                         nullable: true
- *                         description: null mientras el índice no se haya calculado
+ *                         description: Índice vigente; null mientras se calcula o si no hay coordenadas
  *                         properties:
- *                           puntaje: { type: number, minimum: 0, maximum: 100 }
+ *                           puntaje:           { type: number, minimum: 0, maximum: 100, example: 86.71 }
+ *                           nivel:             { type: string, enum: [verde, amarillo, rojo] }
+ *                           version_algoritmo: { type: string, example: v1.0 }
+ *                           fecha_calculo:     { type: string, format: date-time }
  *                 total:    { type: integer }
  *                 page:     { type: integer }
  *                 pageSize: { type: integer }
@@ -152,7 +155,9 @@ router.get('/vistas', authenticate, controller.listarVistas);
  *         y para el administrador, que la reciben con su `estado`.
  *       - El `email` y `telefono` del vendedor **solo se incluyen** si el solicitante tiene una
  *         conversación con el vendedor sobre esta propiedad (RNF-08).
- *       - `indice_conveniencia` es null mientras el índice esté en cálculo.
+ *       - `indice_conveniencia` es el índice vigente con su desglose (docs/HomeScope_Indice_Conveniencia.md).
+ *         `indice_estado` dice por qué falta: `en_calculo` (se está calculando en segundo plano) o
+ *         `sin_ubicacion` (la propiedad no tiene coordenadas).
  *     security:
  *       - {}
  *       - bearerAuth: []
@@ -206,10 +211,26 @@ router.get('/vistas', authenticate, controller.listarVistas);
  *                       precio_anterior: { type: string }
  *                       precio_nuevo:    { type: string }
  *                       fecha_cambio:    { type: string, format: date-time }
+ *                 indice_estado: { type: string, enum: [calculado, en_calculo, sin_ubicacion] }
  *                 indice_conveniencia:
  *                   type: object
  *                   nullable: true
- *                   description: null mientras el índice esté en cálculo
+ *                   properties:
+ *                     puntaje:           { type: number, example: 86.71 }
+ *                     nivel:             { type: string, enum: [verde, amarillo, rojo] }
+ *                     version_algoritmo: { type: string, example: v1.0 }
+ *                     fecha_calculo:     { type: string, format: date-time }
+ *                     radio_m:           { type: integer, example: 1500, description: Radio dentro del cual los lugares suman al índice }
+ *                     subpuntajes:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           categoria:          { type: string, example: transporte }
+ *                           peso:               { type: number, example: 0.15 }
+ *                           puntaje:            { type: number, example: 43.92 }
+ *                           cantidad_puntos:    { type: integer, example: 2 }
+ *                           distancia_minima_m: { type: integer, nullable: true, example: 519 }
  *                 es_dueno:       { type: boolean }
  *                 es_favorito:    { type: boolean }
  *                 vendedor:
@@ -345,6 +366,8 @@ router.post('/', authenticate, requirePermission('propiedad.crear'), controller.
  *     description: |
  *       Actualiza cualquier subconjunto de campos. Solo el vendedor dueño puede editar.
  *       Si cambia el precio, se registra automáticamente en `historial_precio`.
+ *       Si cambian `latitud` o `longitud` de una propiedad publicada, se encola el recálculo del
+ *       Índice de Conveniencia (`recalculando_indice: true`); el nuevo índice aparece en la ficha en segundos.
  *       No se puede editar una propiedad con estado `vendido` o `alquilado`.
  *     security:
  *       - bearerAuth: []
@@ -385,6 +408,7 @@ router.post('/', authenticate, requirePermission('propiedad.crear'), controller.
  *                 titulo:              { type: string }
  *                 estado:              { type: string }
  *                 fecha_actualizacion: { type: string, format: date-time }
+ *                 recalculando_indice: { type: boolean }
  *       403:
  *         description: No eres el dueño de esta propiedad.
  *         content:
@@ -433,7 +457,9 @@ router.delete('/:id', authenticate, controller.eliminar);
  *   post:
  *     tags: [Propiedades]
  *     summary: Publicar propiedad (borrador → publicado)
- *     description: Transición de estado `borrador` a `publicado`. Solo el dueño.
+ *     description: |
+ *       Transición de estado `borrador` a `publicado`. Solo el dueño.
+ *       Encola el cálculo del Índice de Conveniencia, que se guarda en segundo plano (ADR-08).
  *     security:
  *       - bearerAuth: []
  *     parameters:

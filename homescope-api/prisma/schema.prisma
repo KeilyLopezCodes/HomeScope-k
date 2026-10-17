@@ -115,6 +115,8 @@ model Propiedad {
   conversaciones     Conversacion[]
   fotos              FotoPropiedad[]
   historial_precios  HistorialPrecio[]
+  puntos_interes     PuntoInteres[]
+  indices            IndiceConveniencia[]
 
   @@index([vendedor_id])
   @@map("propiedad")
@@ -207,4 +209,71 @@ model TokenUsuario {
 
   @@index([usuario_id])
   @@map("token_usuario")
+}
+
+// ─── Índice de Conveniencia (docs/HomeScope_Indice_Conveniencia.md) ─────────
+
+// Categorías y pesos del índice. Los pesos de las activas deben sumar 1.00 (RNF-13)
+model CategoriaInteres {
+  id                 Int                   @id @default(autoincrement()) @db.SmallInt
+  nombre             String                @unique @db.VarChar(40) // educacion|salud|comercio|transporte|seguridad|areas_verdes
+  google_place_types String                @db.VarChar(200)        // tipos de Places separados por coma
+  icono              String?               @db.VarChar(50)
+  peso               Decimal               @db.Decimal(4, 2)
+  activa             Boolean               @default(true)
+  puntos_interes     PuntoInteres[]
+  sub_puntajes       SubPuntajeCategoria[]
+
+  @@map("categoria_interes")
+}
+
+// Lugares usados en el último cálculo (se reemplazan en cada recálculo)
+model PuntoInteres {
+  id                  BigInt           @id @default(autoincrement())
+  propiedad_id        Int
+  categoria_id        Int              @db.SmallInt
+  google_place_id     String           @db.VarChar(200)
+  nombre              String           @db.VarChar(200)
+  latitud             Decimal          @db.Decimal(9, 6)
+  longitud            Decimal          @db.Decimal(9, 6)
+  distancia_m         Int
+  tiempo_estimado_min Int              @db.SmallInt // caminando
+  radio_consulta_m    Int              @db.SmallInt // 500|1000|2000
+  fecha_consulta      DateTime         @default(now()) @db.Timestamptz
+  propiedad           Propiedad        @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  categoria           CategoriaInteres @relation(fields: [categoria_id], references: [id])
+
+  @@index([propiedad_id, categoria_id])
+  @@map("punto_interes")
+}
+
+// Un solo índice vigente por propiedad (índice único parcial en la migración); los anteriores quedan como historial
+model IndiceConveniencia {
+  id                Int                   @id @default(autoincrement())
+  propiedad_id      Int
+  puntaje_total     Decimal               @db.Decimal(5, 2)
+  nivel_semaforo    String                @db.VarChar(10) // verde|amarillo|rojo
+  radio_m           Int                   @db.SmallInt
+  version_algoritmo String                @db.VarChar(10)
+  es_vigente        Boolean               @default(true)
+  fecha_calculo     DateTime              @default(now()) @db.Timestamptz
+  propiedad         Propiedad             @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  sub_puntajes      SubPuntajeCategoria[]
+
+  @@index([propiedad_id])
+  @@index([es_vigente, puntaje_total])
+  @@map("indice_conveniencia")
+}
+
+model SubPuntajeCategoria {
+  indice_id          Int
+  categoria_id       Int                @db.SmallInt
+  puntaje            Decimal            @db.Decimal(5, 2)
+  cantidad_puntos    Int                @db.SmallInt
+  distancia_minima_m Int?
+  indice             IndiceConveniencia @relation(fields: [indice_id], references: [id], onDelete: Cascade)
+  categoria          CategoriaInteres   @relation(fields: [categoria_id], references: [id])
+
+  @@id([indice_id, categoria_id])
+  @@map("sub_puntaje_categoria")
 }

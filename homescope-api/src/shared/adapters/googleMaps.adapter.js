@@ -5,7 +5,7 @@ import { AppError } from '../errors/AppError.js';
 // Places API (New): la versión legacy (nearbysearch/json) ya no se habilita en proyectos nuevos
 const URL_NEARBY = 'https://places.googleapis.com/v1/places:searchNearby';
 // Solo se piden los campos que se usan: Google cobra según la máscara de campos
-const CAMPOS = 'places.id,places.displayName,places.formattedAddress,places.location,places.types';
+const CAMPOS = 'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.businessStatus';
 const TIMEOUT_MS = 8000;
 
 export class GoogleMapsAdapter extends MapsPort {
@@ -41,7 +41,10 @@ export class GoogleMapsAdapter extends MapsPort {
       throw new AppError('MAPS_NO_DISPONIBLE', 'No se pudo consultar el servicio de mapas.', 502);
     }
 
-    return (cuerpo.places ?? []).map((p) => ({
+    return (cuerpo.places ?? [])
+      // Se descartan los negocios cerrados; los lugares sin estado (parques, paradas) se conservan
+      .filter((p) => !p.businessStatus || p.businessStatus === 'OPERATIONAL')
+      .map((p) => ({
       place_id:  p.id,
       nombre:    p.displayName?.text ?? 'Sin nombre',
       direccion: p.formattedAddress ?? null,

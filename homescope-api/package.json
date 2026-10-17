@@ -14,7 +14,9 @@
     "db:seed:prueba": "node prisma/seed-prueba.js",
     "db:seed:catalogo": "node prisma/seed-catalogo.js",
     "db:studio": "prisma studio",
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "indice:recalcular": "node src/jobs/recalcular-indices.js",
+    "db:seed:indices-fake": "node prisma/seed-indices-fake.js"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",
@@ -38,5 +40,9 @@
     "jest": "^29.7.0",
     "prisma": "^5.0.0",
     "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {}
   }
 }
