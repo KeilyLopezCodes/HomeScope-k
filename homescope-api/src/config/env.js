@@ -8,7 +8,8 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string(),
   JWT_REFRESH_SECRET: z.string(),
   CORS_ORIGIN: z.string(),
-  GOOGLE_MAPS_API_KEY: z.string(),
+  // Clave de servidor para Places y Geocoding (la del navegador va en homescope-web)
+  GOOGLE_MAPS_SERVER_KEY: z.string(),
   // Almacenamiento de archivos: 'local' (disco de este equipo) | 'cloudinary'
   STORAGE_DRIVER: z.enum(['local', 'cloudinary']).default('local'),
   UPLOADS_DIR: z.string().default('uploads'),

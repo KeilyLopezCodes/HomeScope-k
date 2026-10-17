@@ -1,6 +1,13 @@
 // MapsPort — interfaz para Google Maps (Places + Geocoding)
+// Implementación en shared/adapters/googleMaps.adapter.js
 export class MapsPort {
-  async getNearbyPlaces(_lat, _lng, _categoryId) { throw new Error('Not implemented'); }
+  /**
+   * Lugares cercanos a un punto, del más cercano al más lejano.
+   * @param {{ lat: number, lng: number }} origen
+   * @param {{ tipos: string[], radio: number, maximo?: number }} opciones  tipos de lugar de Places, radio en metros
+   * @returns {Promise<Array<{ place_id: string, nombre: string, direccion: string|null, latitud: number, longitud: number, tipos: string[] }>>}
+   */
+  async buscarLugaresCercanos(_origen, _opciones) { throw new Error('Not implemented'); }
   async geocodeAddress(_address) { throw new Error('Not implemented'); }
 }
 
