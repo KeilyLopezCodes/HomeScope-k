@@ -1,9 +1,27 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPinOff } from 'lucide-react';
 import Semaforo, { nivelIndice } from './Semaforo';
 import { CATEGORIAS } from '../config/categorias';
 
-// indice: { puntaje, subpuntajes: [{ categoria, puntaje }] } o null mientras se calcula
-export default function IndiceConveniencia({ indice }) {
+// indice: { puntaje, subpuntajes: [{ categoria, puntaje }], fecha_calculo } o null
+// estado: 'calculado' | 'en_calculo' | 'sin_ubicacion' (indice_estado de la API)
+export default function IndiceConveniencia({ indice, estado }) {
+  if (!indice && estado === 'sin_ubicacion') {
+    return (
+      <section aria-labelledby="indice-titulo" className="rounded-lg border border-secondary-200 bg-white p-4 sm:p-5">
+        <h2 id="indice-titulo" className="text-base font-semibold text-secondary-900">Índice de Conveniencia</h2>
+        <div className="mt-3 flex items-start gap-3 rounded-md bg-secondary-50 p-3">
+          <MapPinOff size={18} className="mt-0.5 shrink-0 text-secondary-400" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-medium text-secondary-800">Índice no disponible</p>
+            <p className="text-xs text-secondary-500">
+              Esta propiedad no tiene su ubicación exacta registrada. El índice se calcula cuando el vendedor la marca en el mapa.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   if (!indice) {
     return (
       <section aria-labelledby="indice-titulo" className="rounded-lg border border-secondary-200 bg-white p-4 sm:p-5">
@@ -48,6 +66,13 @@ export default function IndiceConveniencia({ indice }) {
             </div>
           ))}
         </dl>
+      )}
+
+      {indice.fecha_calculo && (
+        <p className="mt-4 text-xs text-secondary-400">
+          Calculado el {new Intl.DateTimeFormat('es-GT', { dateStyle: 'medium' }).format(new Date(indice.fecha_calculo))}
+          {' '}con servicios a menos de 1.5 km · algoritmo {indice.version_algoritmo}
+        </p>
       )}
     </section>
   );

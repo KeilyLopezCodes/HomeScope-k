@@ -153,7 +153,7 @@ export default function PropiedadDetallePage() {
           <Resumen propiedad={propiedad} className="lg:hidden" />
           <Caracteristicas propiedad={propiedad} />
 
-          <IndiceConveniencia indice={propiedad.indice_conveniencia} />
+          <IndiceConveniencia indice={propiedad.indice_conveniencia} estado={propiedad.indice_estado} />
 
           <Seccion titulo="Ubicación y puntos de interés">
             <SeccionPuntosInteres propiedad={propiedad} direccion={ubicacionCompleta} />
