@@ -27,11 +27,18 @@ export function cargarGoogleMaps() {
     document.head.appendChild(script);
   }).then(async () => {
     const { importLibrary } = window.google.maps;
-    const [{ Map }, { AdvancedMarkerElement }, { StreetViewPanorama, StreetViewService }, { Geocoder }] =
+    const [{ Map }, { AdvancedMarkerElement, Marker }, streetView, { Geocoder }, { spherical }] =
       await Promise.all([
-        importLibrary('maps'), importLibrary('marker'), importLibrary('streetView'), importLibrary('geocoding'),
+        importLibrary('maps'), importLibrary('marker'), importLibrary('streetView'),
+        importLibrary('geocoding'), importLibrary('geometry'),
       ]);
-    return { Map, AdvancedMarkerElement, StreetViewPanorama, StreetViewService, geocoder: new Geocoder() };
+    return {
+      Map, AdvancedMarkerElement, Marker, spherical,
+      StreetViewPanorama: streetView.StreetViewPanorama,
+      StreetViewService:  streetView.StreetViewService,
+      StreetViewSource:   streetView.StreetViewSource,
+      geocoder: new Geocoder(),
+    };
   });
 
   return carga;

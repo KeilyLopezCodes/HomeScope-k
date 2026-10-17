@@ -9,6 +9,9 @@ const VISTAS = [
   { id: 'street',   etiqueta: 'Street View' },
 ];
 
+// Distancia máxima entre la propiedad y el panorama más cercano (las casas suelen estar retiradas de la calle)
+const RADIO_STREET_VIEW = 150;
+
 const mismaPosicion = (a, b) =>
   a && b && Math.abs(a.lat - b.lat) < 1e-7 && Math.abs(a.lng - b.lng) < 1e-7;
 
@@ -21,6 +24,7 @@ export default function MapaInteractivo({ posicion, arrastrable = false, onMover
   const mapa      = useRef(null);
   const marcador  = useRef(null);
   const panorama  = useRef(null);
+  const marcadorStreet = useRef(null);
   const onMoverRef = useRef(onMover);
   onMoverRef.current = onMover;
 
@@ -81,16 +85,24 @@ export default function MapaInteractivo({ posicion, arrastrable = false, onMover
 
     let activo = true;
     new maps.StreetViewService()
-      .getPanorama({ location: posicion, radius: 100 })
+      .getPanorama({ location: posicion, radius: RADIO_STREET_VIEW, sources: [maps.StreetViewSource.OUTDOOR] })
       .then(({ data }) => {
         if (!activo) return;
-        setHayStreetView(true);
+        const desde = data.location.latLng;
         panorama.current ??= new maps.StreetViewPanorama(divStreet.current, {
-          pov: { heading: 0, pitch: 0 },
           addressControl: false,
           motionTracking: false,
+          fullscreenControl: true,
         });
-        panorama.current.setPosition(data.location.latLng);
+        // La cámara mira hacia la propiedad, que puede estar a unos metros de la calle
+        panorama.current.setPosition(desde);
+        panorama.current.setPov({ heading: maps.spherical.computeHeading(desde, posicion), pitch: 0 });
+        panorama.current.setVisible(true);
+
+        // AdvancedMarkerElement no se dibuja dentro de Street View: aquí se usa el marcador clásico
+        marcadorStreet.current ??= new maps.Marker({ map: panorama.current, title: titulo });
+        marcadorStreet.current.setPosition(posicion);
+        setHayStreetView(true);
       })
       .catch(() => activo && setHayStreetView(false));
     return () => { activo = false; };
@@ -131,18 +143,24 @@ export default function MapaInteractivo({ posicion, arrastrable = false, onMover
       </div>
 
       <div className="relative aspect-[16/9] overflow-hidden rounded-md bg-secondary-100">
-        {/* Los dos contenedores quedan montados: el mapa no se recrea al volver de Street View */}
-        <div ref={divMapa} aria-label={`Mapa de ${titulo}`} className={['h-full w-full', enStreet ? 'hidden' : ''].join(' ')} />
-        <div ref={divStreet} aria-label={`Street View de ${titulo}`} className={['h-full w-full', enStreet && hayStreetView ? '' : 'hidden'].join(' ')} />
+        {/* Los dos contenedores quedan montados y superpuestos: el mapa no se recrea al volver de Street View.
+            Se ocultan con `invisible` y no con `hidden`: Google no dibuja un panorama creado en un div con display:none */}
+        <div ref={divMapa} aria-label={`Mapa de ${titulo}`} className={['absolute inset-0', enStreet ? 'invisible' : ''].join(' ')} />
+        <div ref={divStreet} aria-label={`Street View de ${titulo}`} className={['absolute inset-0', enStreet && hayStreetView ? '' : 'invisible'].join(' ')} />
 
         {!maps && (
           <div className="absolute inset-0 flex items-center justify-center">
             <Loader2 size={24} className="animate-spin text-primary-600" aria-label="Cargando mapa" />
           </div>
         )}
+        {enStreet && hayStreetView === null && maps && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 size={24} className="animate-spin text-primary-600" aria-label="Buscando Street View" />
+          </div>
+        )}
         {enStreet && hayStreetView === false && (
           <p className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-secondary-600">
-            No hay imágenes de Street View a menos de 100 m de esta ubicación.
+            Google no tiene imágenes de Street View a menos de {RADIO_STREET_VIEW} m de esta ubicación.
           </p>
         )}
       </div>
