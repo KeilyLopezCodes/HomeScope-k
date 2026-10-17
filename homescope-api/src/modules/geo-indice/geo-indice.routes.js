@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { authenticate } from '../../shared/middleware/auth.js';
+import { authenticate, optionalAuth } from '../../shared/middleware/auth.js';
 import * as controller from './geo-indice.controller.js';
 
 const router = Router();
@@ -9,6 +9,15 @@ const router = Router();
 const limitePlaces = rateLimit({
   windowMs: 60 * 1000,
   limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: { code: 'DEMASIADAS_SOLICITUDES', message: 'Demasiadas consultas de puntos de interés. Espera un minuto.', details: [] } },
+});
+
+// La ficha consulta al cambiar radio o categorías; casi todo sale de caché, por eso el límite es mayor
+const limiteFicha = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: { code: 'DEMASIADAS_SOLICITUDES', message: 'Demasiadas consultas de puntos de interés. Espera un minuto.', details: [] } },
@@ -127,6 +136,47 @@ const limitePlaces = rateLimit({
 router.get('/puntos-interes', authenticate, limitePlaces, controller.buscarPuntosInteres);
 
 router.get('/propiedades/:id/indice', controller.getIndice);
-router.get('/propiedades/:id/puntos-interes', controller.getPuntosInteres);
+/**
+ * @openapi
+ * /geo/propiedades/{id}/puntos-interes:
+ *   get:
+ *     tags: [Geo e índice]
+ *     summary: Puntos de interés alrededor de una propiedad (ficha)
+ *     description: |
+ *       Igual que `GET /geo/puntos-interes`, pero con la coordenada guardada de la propiedad.
+ *       Es público como la ficha: una propiedad no publicada responde 404, salvo para su dueño y el
+ *       administrador. Comparte la caché con el endpoint por coordenada. Límite: 60 consultas por minuto.
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: radio
+ *         schema: { type: integer, enum: [500, 1000, 2000], default: 2000 }
+ *       - in: query
+ *         name: categorias
+ *         description: Lista separada por comas (educacion, salud, comercio, transporte, seguridad, areas_verdes)
+ *         schema: { type: string, example: "salud,transporte" }
+ *     responses:
+ *       200:
+ *         description: Misma respuesta que `GET /geo/puntos-interes`.
+ *       404:
+ *         description: La propiedad no existe o no está publicada.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       422:
+ *         description: Radio o categorías inválidos, o la propiedad no tiene coordenadas (`SIN_UBICACION`).
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       502:
+ *         description: Google Places no respondió.
+ */
+router.get('/propiedades/:id/puntos-interes', optionalAuth, limiteFicha, controller.puntosInteresDePropiedad);
 
 export default router;

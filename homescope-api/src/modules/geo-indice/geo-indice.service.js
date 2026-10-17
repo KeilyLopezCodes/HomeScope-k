@@ -2,6 +2,9 @@
 // Reglas: pesos en BD con versión del algoritmo; recálculo masivo al cambiar pesos (RNF-13)
 import { maps } from '../../shared/adapters/googleMaps.adapter.js';
 import { CATEGORIAS_INTERES, RADIO_CONSULTA_M } from './geo-indice.schemas.js';
+import { PropiedadesService } from '../propiedades/propiedades.service.js';
+
+const propiedadesService = new PropiedadesService();
 
 // Tiempo estimado sin llamar a Distance Matrix (que se cobra aparte): la distancia en línea recta
 // se multiplica por un factor de rodeo por calles y se divide entre una velocidad promedio.
@@ -59,6 +62,12 @@ export function tiempoEstimado(distancia) {
 }
 
 export class GeoIndiceService {
+  // Puntos de interés de una propiedad (con la misma regla de visibilidad que su ficha)
+  async puntosInteresDePropiedad(propiedadId, filtros, solicitante = null) {
+    const { lat, lng } = await propiedadesService.obtenerUbicacion(propiedadId, solicitante);
+    return this.buscarPuntosInteres({ lat, lng, ...filtros });
+  }
+
   // Puntos de interés alrededor de una coordenada, agrupados por categoría y ordenados por distancia
   async buscarPuntosInteres({ lat, lng, radio, categorias }) {
     const origen = { lat, lng };

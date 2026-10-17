@@ -63,6 +63,13 @@ export class PropiedadesRepository {
     });
   }
 
+  async buscarUbicacion(id) {
+    return prisma.propiedad.findUnique({
+      where:  { id },
+      select: { id: true, estado: true, vendedor_id: true, latitud: true, longitud: true },
+    });
+  }
+
   async listarPorVendedor(vendedorId) {
     return prisma.propiedad.findMany({
       where:   { vendedor_id: vendedorId },

@@ -1,20 +1,10 @@
 import { Router } from 'express';
-import jwt from 'jsonwebtoken';
-import { env } from '../../config/env.js';
-import { authenticate, requirePermission } from '../../shared/middleware/auth.js';
+import { authenticate, optionalAuth, requirePermission } from '../../shared/middleware/auth.js';
 import { subirArchivos } from '../../shared/middleware/upload.js';
 import { FOTOS_CONFIG } from './propiedades.schemas.js';
 import * as controller from './propiedades.controller.js';
 
 const router = Router();
-
-function optionalAuth(req, _res, next) {
-  const header = req.headers.authorization;
-  if (header?.startsWith('Bearer ')) {
-    try { req.user = jwt.verify(header.slice(7), env.JWT_ACCESS_SECRET); } catch { /* ignorar */ }
-  }
-  next();
-}
 
 /**
  * @openapi
@@ -220,7 +210,6 @@ router.get('/vistas', authenticate, controller.listarVistas);
  *                   type: object
  *                   nullable: true
  *                   description: null mientras el índice esté en cálculo
- *                 puntos_interes: { type: array, items: { type: object } }
  *                 es_dueno:       { type: boolean }
  *                 es_favorito:    { type: boolean }
  *                 vendedor:

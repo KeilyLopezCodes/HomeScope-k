@@ -33,11 +33,7 @@ export class PropiedadesService {
 
     const solicitanteId = solicitante?.id ?? null;
     const esDueno = solicitanteId === propiedad.vendedor.id;
-    const esAdmin = solicitante?.roles?.some((r) => ROLES_ADMIN.includes(r)) ?? false;
-
-    // Las no publicadas solo las ven su dueño y el administrador; para los demás no existen
-    if (propiedad.estado !== 'publicado' && !esDueno && !esAdmin)
-      throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
+    this._verificarVisible(propiedad.estado, propiedad.vendedor.id, solicitante);
 
     const { vendedor, ...resto } = propiedad;
     const contactoVisible =
@@ -61,12 +57,23 @@ export class PropiedadesService {
         total_resenas:         0,
         ...(contactoVisible && { email: vendedor.email, telefono: vendedor.telefono }),
       },
-      // TODO: índice vigente y puntos de interés precalculados de geo-indice (ADR-08); null = "índice en cálculo"
+      // TODO: índice vigente precalculado de geo-indice (ADR-08); null = "índice en cálculo".
+      // Los puntos de interés se piden aparte: GET /geo/propiedades/:id/puntos-interes
       indice_conveniencia: null,
-      puntos_interes:      [],
       es_dueno:            esDueno,
       es_favorito:         esFavorito,
     };
+  }
+
+  // Coordenadas de una propiedad visible para el solicitante (lo usa geo-indice para los puntos de interés)
+  async obtenerUbicacion(propiedadId, solicitante = null) {
+    const propiedad = await repo.buscarUbicacion(propiedadId);
+    if (!propiedad) throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
+    this._verificarVisible(propiedad.estado, propiedad.vendedor_id, solicitante);
+
+    if (propiedad.latitud == null || propiedad.longitud == null)
+      throw new AppError('SIN_UBICACION', 'La propiedad no tiene coordenadas registradas', 422);
+    return { lat: Number(propiedad.latitud), lng: Number(propiedad.longitud) };
   }
 
   async listarMias(usuarioId) {
@@ -206,6 +213,14 @@ export class PropiedadesService {
   }
 
   // ── Helpers privados ───────────────────────────────────────────────────────
+
+  // Las no publicadas solo las ven su dueño y el administrador; para los demás no existen
+  _verificarVisible(estado, vendedorId, solicitante) {
+    if (estado === 'publicado') return;
+    const esDueno = solicitante?.id != null && solicitante.id === vendedorId;
+    const esAdmin = solicitante?.roles?.some((r) => ROLES_ADMIN.includes(r)) ?? false;
+    if (!esDueno && !esAdmin) throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
+  }
 
   async _verificarDueno(propiedadId, usuarioId) {
     const propiedad = await repo.buscarPorId(propiedadId);

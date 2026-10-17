@@ -39,10 +39,7 @@ export async function listar(req, res, next) {
 export async function getById(req, res, next) {
   try {
     const id   = parseId(req.params.id);
-    // optionalAuth no normaliza el token: los viejos solo traen `rol`
-    const solicitante = req.user
-      ? { id: req.user.sub, roles: req.user.roles ?? [req.user.rol] }
-      : null;
+    const solicitante = req.user ? { id: req.user.sub, roles: req.user.roles } : null;
     const data = await service.getById(id, solicitante);
     res.json(data);
   } catch (err) { next(err); }

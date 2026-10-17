@@ -1,5 +1,5 @@
 import { GeoIndiceService } from './geo-indice.service.js';
-import { puntosInteresSchema } from './geo-indice.schemas.js';
+import { puntosInteresSchema, puntosInteresPropiedadSchema } from './geo-indice.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
 const service = new GeoIndiceService();
@@ -24,6 +24,16 @@ export async function buscarPuntosInteres(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// TODO: índice y puntos de interés precalculados de una propiedad (ADR-08)
+export async function puntosInteresDePropiedad(req, res, next) {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) throw new AppError('ID_INVALIDO', 'ID inválido', 400);
+    const filtros     = validar(puntosInteresPropiedadSchema, req.query);
+    const solicitante = req.user ? { id: req.user.sub, roles: req.user.roles } : null;
+    const resultado   = await service.puntosInteresDePropiedad(id, filtros, solicitante);
+    res.set('X-Cache', resultado.desde_cache ? 'HIT' : 'MISS').json(resultado);
+  } catch (err) { next(err); }
+}
+
+// TODO: índice precalculado de una propiedad (ADR-08)
 export const getIndice = (_req, res) => res.status(501).json({ message: 'Not implemented' });
-export const getPuntosInteres = (_req, res) => res.status(501).json({ message: 'Not implemented' });

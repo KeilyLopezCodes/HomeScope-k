@@ -17,6 +17,19 @@ export function authenticate(req, _res, next) {
   }
 }
 
+// Para endpoints públicos cuya respuesta cambia con la sesión: si hay un token válido llena req.user,
+// si no hay o es inválido sigue como visitante (sin 401)
+export function optionalAuth(req, _res, next) {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    try {
+      req.user = jwt.verify(header.slice(7), env.JWT_ACCESS_SECRET);
+      if (!req.user.roles) req.user.roles = [req.user.rol ?? 'comprador'];
+    } catch { /* token inválido o expirado: se atiende como visitante */ }
+  }
+  next();
+}
+
 // Verifica que el usuario tenga el permiso requerido consultando la BD
 export function requirePermission(codigoPermiso) {
   return async (req, _res, next) => {

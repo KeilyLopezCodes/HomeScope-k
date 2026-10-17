@@ -18,9 +18,8 @@ export const RADIO_CONSULTA_M  = Math.max(...RADIOS_PERMITIDOS);
 
 const CODIGOS = Object.keys(CATEGORIAS_INTERES);
 
-export const puntosInteresSchema = z.object({
-  lat:   z.coerce.number().min(-90).max(90),
-  lng:   z.coerce.number().min(-180).max(180),
+// Filtros comunes: radio y categorías
+const filtrosSchema = z.object({
   radio: z.coerce.number({ invalid_type_error: `El radio debe ser uno de: ${RADIOS_PERMITIDOS.join(', ')} (metros)` })
     .refine((r) => RADIOS_PERMITIDOS.includes(r), {
       message: `El radio debe ser uno de: ${RADIOS_PERMITIDOS.join(', ')} (metros)`,
@@ -33,3 +32,12 @@ export const puntosInteresSchema = z.object({
       message: `Categorías válidas: ${CODIGOS.join(', ')}`,
     }),
 });
+
+// GET /geo/puntos-interes?lat&lng: coordenada libre
+export const puntosInteresSchema = filtrosSchema.extend({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+});
+
+// GET /geo/propiedades/:id/puntos-interes: la coordenada es la de la propiedad
+export const puntosInteresPropiedadSchema = filtrosSchema;
