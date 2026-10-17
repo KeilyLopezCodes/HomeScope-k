@@ -1,6 +1,6 @@
 # HomeScope — Algoritmo del Índice de Conveniencia
 
-**Versión del algoritmo:** `v1.0` · **Estado:** propuesta para validar en la Sprint Review · **Fecha:** octubre de 2026
+**Versión del algoritmo:** `v1.0` · **Estado:** implementado; parámetros por validar en la Sprint Review · **Fecha:** octubre de 2026
 
 Este documento define los pesos por categoría y la fórmula con la que se calcula el Índice de Conveniencia de cada propiedad. Es la referencia para implementar el cálculo (trabajo `calcular-indice` del módulo `geo-indice`) y para explicar el resultado al usuario.
 
@@ -258,11 +258,82 @@ Los iconos coinciden con los que ya usa la ficha (`homescope-web/src/features/in
 
 ---
 
-## 10. Pendientes para la implementación
+## 10. Cómo recalcular el índice
 
-1. Migración con las tablas `categoria_interes`, `punto_interes`, `indice_conveniencia` y `sub_puntaje_categoria`, y el índice único parcial `ux_indice_vigente`.
-2. Seed de `categoria_interes` con los valores de la sección 8.
-3. Función pura `calcularIndice(lugaresPorCategoria, pesos, parametros)` en `geo-indice`, sin acceso a BD ni a Google. Sus pruebas unitarias pueden usar como casos los cuatro ejemplos de la sección 5.3.
-4. Agregar `businessStatus` a la consulta del adaptador de Google Places para descartar lugares cerrados.
-5. Trabajo `calcular-indice` en pg-boss, encolado al publicar y al cambiar la ubicación, y trabajo de recálculo masivo al cambiar de versión.
-6. Que la ficha y el catálogo lean el índice vigente (hoy la API devuelve `indice_conveniencia: null`).
+### 10.1 Recálculo automático
+
+En el uso normal no hay que hacer nada. La API encola el trabajo `calcular-indice` en estos casos:
+
+| Acción | Endpoint |
+| --- | --- |
+| Publicar una propiedad | `POST /propiedades/:id/publicar`, o `PATCH /propiedades/:id/estado` con `publicado` |
+| Cambiar la latitud o la longitud de una propiedad publicada | `PUT /propiedades/:id` (la respuesta trae `recalculando_indice: true`) |
+
+El worker de la API procesa el trabajo en segundos y guarda el índice nuevo; el anterior queda en el historial con `es_vigente = false`. Mientras tanto la ficha muestra "Índice en cálculo" y se actualiza sola. Si Google Places falla, pg-boss reintenta hasta 5 veces con espera creciente.
+
+Cambiar solo otros campos (precio, descripción, dirección escrita…) no recalcula, porque el índice depende únicamente de las coordenadas.
+
+### 10.2 Recálculo manual
+
+Se usa cuando cambia la versión del algoritmo (sección 6), cuando se cambian los pesos, para calcular propiedades publicadas antes de que existiera el cálculo automático, o para reemplazar los índices de prueba.
+
+Requisitos:
+
+- La API debe estar corriendo (`npm run dev` en `homescope-api`). El script solo encola los trabajos; el que calcula es el worker de la API.
+- La clave `GOOGLE_MAPS_SERVER_KEY` debe estar configurada en `homescope-api/.env`.
+
+Comandos, desde `homescope-api`:
+
+```bash
+# Todas las propiedades publicadas que tienen coordenadas
+npm run indice:recalcular
+
+# Solo algunas propiedades, por id
+npm run indice:recalcular -- 45 47 49
+```
+
+El script indica cuántos cálculos encoló y cuáles propiedades omitió porque no están publicadas o no tienen coordenadas. Si una propiedad ya tenía un cálculo pendiente, no se duplica.
+
+**Costo:** cada propiedad hace hasta 6 consultas a Google Places, una por categoría. Las coordenadas consultadas en las últimas 24 horas salen de la caché de la API y no se cobran, pero la caché se borra al reiniciar la API. Antes de un recálculo de todas las propiedades, conviene revisar el presupuesto en Google Cloud.
+
+### 10.3 Cambiar los pesos o los parámetros
+
+1. Actualizar los pesos en `categoria_interes.peso` con una migración nueva. Los de las categorías activas deben sumar exactamente 1.00; si no, el cálculo falla sin guardar nada.
+2. Si cambian otros parámetros, editarlos en `homescope-api/src/modules/geo-indice/indice.algoritmo.js`.
+3. En los dos casos, subir `VERSION_ALGORITMO` en ese mismo archivo (por ejemplo, de `v1.0` a `v1.1`) y registrar el cambio en este documento.
+4. Ejecutar `npm test` y ajustar los resultados esperados de `tests/fixtures/indice-ejemplos.json` si los valores cambian a propósito.
+5. Ejecutar `npm run indice:recalcular` para que todas las propiedades queden con la versión nueva (RNF-13).
+
+### 10.4 Verificar el resultado
+
+- En la ficha, el pie del índice muestra la fecha del cálculo y la versión del algoritmo.
+- La ficha devuelve `indice_estado`: `calculado`, `en_calculo` o `sin_ubicacion`.
+- En la consola de la API aparece una línea por propiedad, por ejemplo `Índice de la propiedad 45: 86.71 (verde)`, o el motivo por el que se omitió.
+- En la base de datos se pueden contar los índices vigentes por versión:
+
+```sql
+SELECT version_algoritmo, nivel_semaforo, count(*)
+FROM indice_conveniencia
+WHERE es_vigente
+GROUP BY version_algoritmo, nivel_semaforo
+ORDER BY 1, 2;
+```
+
+### 10.5 Índices de prueba (solo desarrollo)
+
+Para ver el semáforo y el desglose sin gastar consultas a Google, `npm run db:seed:indices-fake` asigna índices ficticios a las propiedades publicadas con coordenadas y sin índice. Se guardan con la versión `fake-v1.0`, que aparece en la ficha, y no tienen puntos de interés guardados. `npm run db:seed:indices-fake -- --reemplazar` los borra y los vuelve a crear.
+
+Al ejecutar `npm run indice:recalcular`, los índices reales reemplazan a los de prueba. Nunca se deben crear índices de prueba en producción.
+
+---
+
+## 11. Dónde está implementado
+
+| Parte | Archivo |
+| --- | --- |
+| Tablas, índice único parcial y pesos iniciales | `homescope-api/prisma/migrations/20261016120000_indice_conveniencia/` |
+| Fórmula y parámetros (funciones puras) | `homescope-api/src/modules/geo-indice/indice.algoritmo.js` |
+| Pruebas con los casos de la sección 5.3 | `homescope-api/tests/indice.algoritmo.test.js` |
+| Consulta a Google y guardado del cálculo | `geo-indice.service.js` (`calcularYGuardar`) y `geo-indice.repository.js` |
+| Cola de trabajos y worker | `homescope-api/src/shared/adapters/jobs.adapter.js` y `src/jobs/` |
+| Disparadores al publicar y al cambiar la ubicación | `propiedades.service.js` |
