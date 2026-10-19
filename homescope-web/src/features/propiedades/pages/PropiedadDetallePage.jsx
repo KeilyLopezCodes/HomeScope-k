@@ -48,7 +48,7 @@ function Resumen({ propiedad, className = '' }) {
         <MapPin size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
         {ubicacionResumida(propiedad)}
       </p>
-      <Semaforo puntaje={propiedad.indice_conveniencia?.puntaje} className="mt-3" />
+      <Semaforo puntaje={propiedad.indice_conveniencia?.puntaje} nivel={propiedad.indice_conveniencia?.nivel} className="mt-3" />
     </div>
   );
 }

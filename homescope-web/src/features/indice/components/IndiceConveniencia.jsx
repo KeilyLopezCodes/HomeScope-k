@@ -1,10 +1,55 @@
-import { Loader2, MapPinOff } from 'lucide-react';
-import Semaforo, { nivelIndice } from './Semaforo';
-import { CATEGORIAS } from '../config/categorias';
+import { useState } from 'react';
+import { ChevronDown, Loader2, MapPinOff } from 'lucide-react';
+import { SemaforoGrande, formatearPuntaje, nivelIndice } from './Semaforo';
+import { IconoCategoria } from './PuntosInteres';
+import { CATEGORIAS, formatearDistancia } from '../config/categorias';
 
-// indice: { puntaje, subpuntajes: [{ categoria, puntaje }], fecha_calculo } o null
+const RESUMEN_NIVEL = {
+  verde:    'Tiene cerca la mayoría de los servicios del día a día.',
+  amarillo: 'Tiene cerca algunos servicios; para otros hay que desplazarse.',
+  rojo:     'Pocos servicios cercanos; la mayoría requiere desplazarse.',
+};
+
+// Fila del desglose: peso, subpuntaje (barra con el color de su nivel), aporte al total y datos de apoyo
+function FilaCategoria({ sub, radio = 1500 }) {
+  const { nombre } = CATEGORIAS[sub.categoria] ?? { nombre: sub.categoria };
+  const nivelSub = nivelIndice(sub.puntaje);
+  const aporte = sub.peso != null ? sub.peso * sub.puntaje : null;
+
+  return (
+    <li className="py-2.5">
+      <div className="flex items-center gap-2 text-sm">
+        {CATEGORIAS[sub.categoria] && <IconoCategoria categoria={sub.categoria} size={12} className="h-5 w-5" />}
+        <span className="font-medium text-secondary-800">{nombre}</span>
+        {sub.peso != null && <span className="text-xs text-secondary-400">peso {Math.round(sub.peso * 100)} %</span>}
+        <span className="ml-auto font-semibold tabular-nums text-secondary-900">{formatearPuntaje(sub.puntaje)}</span>
+      </div>
+      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-secondary-100" aria-hidden="true">
+        <div
+          className={['h-full rounded-full', nivelSub.luz].join(' ')}
+          style={{ width: `${Math.min(100, Math.max(0, sub.puntaje))}%` }}
+        />
+      </div>
+      <p className="mt-1 flex flex-wrap justify-between gap-x-3 text-xs text-secondary-500">
+        <span>
+          {sub.cantidad_puntos != null && (sub.cantidad_puntos
+            ? `${sub.cantidad_puntos} ${sub.cantidad_puntos === 1 ? 'lugar' : 'lugares'} a menos de ${formatearDistancia(radio)}`
+            : `Ninguno a menos de ${formatearDistancia(radio)}`)}
+          {sub.distancia_minima_m != null && ` · el más cercano a ${formatearDistancia(sub.distancia_minima_m)}`}
+        </span>
+        {aporte != null && <span className="tabular-nums">aporta {formatearPuntaje(Math.round(aporte * 100) / 100)}</span>}
+      </p>
+    </li>
+  );
+}
+
+// indice: { puntaje, nivel, subpuntajes: [{ categoria, peso, puntaje, cantidad_puntos, distancia_minima_m }],
+//           radio_m, fecha_calculo, version_algoritmo } o null
 // estado: 'calculado' | 'en_calculo' | 'sin_ubicacion' (indice_estado de la API)
 export default function IndiceConveniencia({ indice, estado }) {
+  // El desglose empieza cerrado: se abre con el botón
+  const [abierto, setAbierto] = useState(false);
+
   if (!indice && estado === 'sin_ubicacion') {
     return (
       <section aria-labelledby="indice-titulo" className="rounded-lg border border-secondary-200 bg-white p-4 sm:p-5">
@@ -40,38 +85,61 @@ export default function IndiceConveniencia({ indice, estado }) {
     );
   }
 
-  const nivel = nivelIndice(indice.puntaje);
+  const nivel = nivelIndice(indice.puntaje, indice.nivel);
+  const subpuntajes = indice.subpuntajes ?? [];
 
   return (
     <section aria-labelledby="indice-titulo" className="rounded-lg border border-secondary-200 bg-white p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="indice-titulo" className="text-base font-semibold text-secondary-900">
-          Índice de Conveniencia: {Math.round(indice.puntaje)}
-        </h2>
-        <Semaforo puntaje={indice.puntaje} />
+      <div className="flex items-center gap-4">
+        <SemaforoGrande puntaje={indice.puntaje} nivel={indice.nivel} className="shrink-0" />
+        <div className="min-w-0">
+          <h2 id="indice-titulo" className="text-sm font-medium text-secondary-600">Índice de Conveniencia</h2>
+          <p className="flex items-baseline gap-1">
+            <span className={['text-3xl font-bold tabular-nums', nivel.texto].join(' ')}>
+              {formatearPuntaje(indice.puntaje)}
+            </span>
+            <span className="text-sm text-secondary-500">/ 100</span>
+          </p>
+          <p className={['text-sm font-semibold', nivel.texto].join(' ')}>Conveniencia {nivel.etiqueta.toLowerCase()}</p>
+          <p className="mt-0.5 text-xs text-secondary-500">{RESUMEN_NIVEL[nivel.clave]}</p>
+        </div>
       </div>
 
-      {indice.subpuntajes?.length > 0 && (
-        <dl className="mt-4 grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
-          {indice.subpuntajes.map(({ categoria, puntaje }) => (
-            <div key={categoria} className="grid grid-cols-[6.5rem_1fr_2rem] items-center gap-2 text-sm">
-              <dt className="text-secondary-600">{CATEGORIAS[categoria]?.nombre ?? categoria}</dt>
-              <dd className="h-2 overflow-hidden rounded-full bg-secondary-100" aria-hidden="true">
-                <div
-                  className={['h-full rounded-full', nivelIndice(puntaje)?.luz ?? nivel.luz].join(' ')}
-                  style={{ width: `${Math.min(100, Math.max(0, puntaje))}%` }}
-                />
-              </dd>
-              <dd className="text-right font-medium text-secondary-800">{Math.round(puntaje)}</dd>
+      {subpuntajes.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setAbierto((v) => !v)}
+            aria-expanded={abierto}
+            aria-controls="indice-desglose"
+            className="mt-4 flex w-full items-center justify-between rounded-md border border-secondary-200 px-3 py-2 text-sm font-medium text-secondary-700 hover:bg-secondary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+          >
+            {abierto ? 'Ocultar desglose' : 'Ver desglose por categoría'}
+            <ChevronDown size={16} aria-hidden="true" className={['transition-transform', abierto ? 'rotate-180' : ''].join(' ')} />
+          </button>
+
+          {abierto && (
+            <div id="indice-desglose" className="mt-3">
+              <ul className="divide-y divide-secondary-100">
+                {subpuntajes.map((s) => <FilaCategoria key={s.categoria} sub={s} radio={indice.radio_m} />)}
+              </ul>
+              <p className="mt-2 flex justify-between border-t border-secondary-200 pt-2 text-sm font-semibold text-secondary-900">
+                <span>Índice (suma de aportes)</span>
+                <span className="tabular-nums">{formatearPuntaje(indice.puntaje)}</span>
+              </p>
+              <p className="mt-2 text-xs text-secondary-500">
+                Cada categoría se califica de 0 a 100 según qué tan cerca está el lugar más cercano y cuántos hay cerca;
+                su aporte es esa calificación multiplicada por su peso.
+              </p>
             </div>
-          ))}
-        </dl>
+          )}
+        </>
       )}
 
       {indice.fecha_calculo && (
         <p className="mt-4 text-xs text-secondary-400">
           Calculado el {new Intl.DateTimeFormat('es-GT', { dateStyle: 'medium' }).format(new Date(indice.fecha_calculo))}
-          {' '}con servicios a menos de 1.5 km · algoritmo {indice.version_algoritmo}
+          {' '}con servicios a menos de {formatearDistancia(indice.radio_m ?? 1500)} · algoritmo {indice.version_algoritmo}
         </p>
       )}
     </section>

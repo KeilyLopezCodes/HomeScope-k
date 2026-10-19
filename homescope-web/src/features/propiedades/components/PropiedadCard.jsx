@@ -50,7 +50,7 @@ export default function PropiedadCard({ propiedad }) {
           <span className="line-clamp-1">{ubicacionResumida(propiedad)}</span>
         </p>
         <div className="mt-auto pt-2">
-          <Semaforo puntaje={propiedad.indice_conveniencia?.puntaje} />
+          <Semaforo puntaje={propiedad.indice_conveniencia?.puntaje} nivel={propiedad.indice_conveniencia?.nivel} />
         </div>
       </div>
     </Link>
