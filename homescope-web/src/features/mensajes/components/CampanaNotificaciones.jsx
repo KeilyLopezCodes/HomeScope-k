@@ -4,6 +4,7 @@ import { Bell } from 'lucide-react';
 import { useMarcarNotificacion, useNotificaciones } from '../hooks/useMensajeria';
 import { haceCuanto } from '../utils/tiempo';
 import { rutaDeNotificacion as rutaDe } from '../utils/notificaciones';
+import { useAuth } from '../../auth';
 
 // Campana del navbar: contador de no leídas y las notificaciones más recientes.
 // Se actualiza sola con Socket.io (AvisosTiempoReal invalida la consulta al llegar una nueva).
@@ -11,6 +12,7 @@ export default function CampanaNotificaciones() {
   const { data } = useNotificaciones();
   const marcar = useMarcarNotificacion();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [abierto, setAbierto] = useState(false);
   const contenedor = useRef(null);
 
@@ -32,7 +34,7 @@ export default function CampanaNotificaciones() {
   function abrir(n) {
     setAbierto(false);
     if (!n.leida) marcar.mutate({ id: n.id });
-    const ruta = rutaDe(n);
+    const ruta = rutaDe(n, user?.id);
     if (ruta) navigate(ruta);
   }
 

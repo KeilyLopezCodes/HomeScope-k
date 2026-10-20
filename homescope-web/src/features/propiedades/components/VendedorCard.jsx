@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { BadgeCheck, Lock, Star } from 'lucide-react';
 import { Badge } from '../../../shared/components/ui';
 
@@ -36,7 +37,10 @@ export default function VendedorCard({ vendedor }) {
           <Calificacion promedio={vendedor.calificacion_promedio} total={vendedor.total_resenas ?? 0} />
         </div>
       </div>
-      <p className="mt-3 flex items-center gap-1.5 text-xs text-secondary-500">
+      <Link to={`/vendedores/${vendedor.id}`} className="mt-3 inline-block text-xs font-medium text-primary-600 hover:underline">
+        Ver perfil y reseñas
+      </Link>
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-secondary-500">
         <Lock size={12} aria-hidden="true" /> Contacto oculto hasta iniciar una conversación
       </p>
     </div>

@@ -5,7 +5,7 @@ import { Badge, Button, EmptyState, Spinner } from '../../../shared/components/u
 import NotFoundPage from '../../../shared/pages/NotFoundPage';
 import { useAuth } from '../../auth';
 import { IndiceConveniencia, SeccionPuntosInteres, Semaforo } from '../../indice';
-import { ResenasPropiedad } from '../../resenas';
+import { SeccionResenas } from '../../resenas';
 import GaleriaFotos from '../components/GaleriaFotos';
 import HistorialPrecios from '../components/HistorialPrecios';
 import VendedorCard from '../components/VendedorCard';
@@ -173,8 +173,8 @@ export default function PropiedadDetallePage() {
             />
           </Seccion>
 
-          <Seccion titulo="Reseñas">
-            <ResenasPropiedad />
+          <Seccion titulo="Reseñas del vendedor">
+            <SeccionResenas propiedad={propiedad} />
           </Seccion>
         </div>
 
