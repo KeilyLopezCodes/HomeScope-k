@@ -3,6 +3,10 @@
 
 export const CALCULAR_INDICE = 'calcular-indice';
 
+// Revisa cada 15 minutos las visitas confirmadas de las próximas 24 horas y envía su recordatorio
+export const RECORDATORIOS_VISITAS = 'recordatorios-visitas';
+export const CRON_RECORDATORIOS = '*/15 * * * *';
+
 export const OPCIONES_CALCULAR_INDICE = (propiedadId) => ({
   // A lo sumo un cálculo pendiente por propiedad: si cambia la ubicación varias veces seguidas,
   // se encola uno solo detrás del que esté en curso

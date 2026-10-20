@@ -32,6 +32,13 @@ export class PgBossJobAdapter extends JobPort {
     return boss.work(nombre, opciones, manejador);
   }
 
+  // Trabajo periódico con expresión cron (pg-boss guarda la programación en la BD: un solo disparo
+  // por intervalo aunque haya varias instancias de la API)
+  async programar(nombre, cron, opciones = {}) {
+    const boss = await this.iniciar();
+    return boss.schedule(nombre, cron, null, opciones);
+  }
+
   async detener() {
     if (this.#boss) await this.#boss.stop({ graceful: true, wait: true });
   }

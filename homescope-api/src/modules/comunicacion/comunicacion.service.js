@@ -117,6 +117,19 @@ export class ComunicacionService {
 
   // ── Notificaciones ─────────────────────────────────────────────────────────
 
+  // Para otros módulos (agenda…): guarda la notificación y la emite en tiempo real al usuario
+  async notificar(usuarioId, { tipo, titulo, contenido, referencia_tipo, referencia_id }) {
+    const notificacion = formatearNotificacion(await repo.crearNotificacion(usuarioId, {
+      tipo,
+      titulo:    titulo.slice(0, 150),
+      contenido: contenido.slice(0, 500),
+      referencia_tipo,
+      referencia_id,
+    }));
+    await realtime.emitToUser(usuarioId, 'notificacion:nueva', notificacion);
+    return notificacion;
+  }
+
   async listarNotificaciones(usuarioId, filtros) {
     const { items, total, no_leidas } = await repo.listarNotificaciones(usuarioId, filtros);
     return { data: items.map(formatearNotificacion), total, no_leidas, page: filtros.page, pageSize: filtros.pageSize };

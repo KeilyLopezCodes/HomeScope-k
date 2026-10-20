@@ -17,7 +17,7 @@ import geoIndiceRoutes from './modules/geo-indice/geo-indice.routes.js';
 import busquedaRoutes from './modules/busqueda/busqueda.routes.js';
 import comunicacionRoutes from './modules/comunicacion/comunicacion.routes.js';
 import notificacionesRoutes from './modules/comunicacion/notificaciones.routes.js';
-import agendaRoutes from './modules/agenda/agenda.routes.js';
+import { disponibilidadRouter, horariosRouter, visitasRouter } from './modules/agenda/agenda.routes.js';
 import reputacionRoutes from './modules/reputacion/reputacion.routes.js';
 import moderacionRoutes from './modules/moderacion/moderacion.routes.js';
 
@@ -65,7 +65,10 @@ app.use('/api/v1/geo', geoIndiceRoutes);
 app.use('/api/v1/busqueda', busquedaRoutes);
 app.use('/api/v1/conversaciones', comunicacionRoutes);
 app.use('/api/v1/notificaciones', notificacionesRoutes);
-app.use('/api/v1/agenda', agendaRoutes);
+// Agenda: tres recursos (disponibilidad del vendedor, horarios libres de una propiedad y visitas)
+app.use('/api/v1/disponibilidad', disponibilidadRouter);
+app.use('/api/v1/propiedades/:id/horarios', horariosRouter);
+app.use('/api/v1/visitas', visitasRouter);
 app.use('/api/v1/resenas', reputacionRoutes);
 app.use('/api/v1/admin', moderacionRoutes);
 

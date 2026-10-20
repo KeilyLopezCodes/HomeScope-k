@@ -151,6 +151,14 @@ export class ComunicacionRepository {
       });
   }
 
+  // Notificación genérica (visitas, recordatorios…); `referencia` apunta al recurso que la originó
+  async crearNotificacion(usuarioId, { tipo, titulo, contenido, referencia_tipo = null, referencia_id = null }) {
+    return prisma.notificacion.create({
+      data:   { usuario_id: usuarioId, tipo, titulo, contenido, referencia_tipo, referencia_id },
+      select: NOTIFICACION_SELECT,
+    });
+  }
+
   async listarNotificaciones(usuarioId, { page, pageSize, leida }) {
     const where = { usuario_id: usuarioId, ...(leida !== undefined && { leida }) };
     const [items, total, no_leidas] = await prisma.$transaction([
