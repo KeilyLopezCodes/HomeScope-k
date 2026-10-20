@@ -3,6 +3,7 @@ import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswor
 import { PerfilPage } from '../features/perfil';
 import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage } from '../features/propiedades';
 import { MensajesPage, AvisosTiempoReal, EstadoConexion } from '../features/mensajes';
+import { VisitasPage } from '../features/agenda';
 import { SocketProvider } from '../shared/realtime/SocketProvider';
 import MainLayout from '../shared/components/MainLayout';
 import ComingSoonPage from '../shared/pages/ComingSoonPage';
@@ -81,7 +82,7 @@ export default function App() {
           <ProtectedRoute><MainLayout><MensajesPage /></MainLayout></ProtectedRoute>
         } />
         <Route path="/visitas" element={
-          <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
+          <ProtectedRoute><MainLayout><VisitasPage /></MainLayout></ProtectedRoute>
         } />
 
         {/* Protegidas — requieren permiso específico */}

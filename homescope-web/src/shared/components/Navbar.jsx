@@ -16,14 +16,14 @@ const VISITOR_LINKS = [
 const BUYER_LINKS = [
   { to: '/favoritos', label: 'Favoritos',   icon: Heart },
   { to: '/mensajes',  label: 'Mensajes',    icon: MessageSquare },
-  { to: '/mis-visitas', label: 'Mis visitas', icon: CalendarDays },
+  { to: '/visitas',   label: 'Visitas',     icon: CalendarDays },
 ];
 const SELLER_LINKS = [
   { to: '/propiedades/nueva',   label: 'Publicar propiedad',  icon: PlusSquare },
   { to: '/mis-propiedades',     label: 'Mis propiedades',     icon: LayoutDashboard },
   { to: '/panel-vendedor',      label: 'Panel del vendedor',  icon: LayoutDashboard },
   { to: '/mensajes',            label: 'Mensajes',            icon: MessageSquare },
-  { to: '/agenda',              label: 'Agenda',              icon: CalendarDays },
+  { to: '/visitas',             label: 'Visitas',             icon: CalendarDays },
 ];
 const ADMIN_LINKS = [
   { to: '/admin', label: 'Administración', icon: ShieldCheck },

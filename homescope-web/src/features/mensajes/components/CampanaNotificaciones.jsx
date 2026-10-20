@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { useMarcarNotificacion, useNotificaciones } from '../hooks/useMensajeria';
 import { haceCuanto } from '../utils/tiempo';
-
-const rutaDe = (n) => (n.referencia_tipo === 'conversacion' ? `/mensajes/${n.referencia_id}` : null);
+import { rutaDeNotificacion as rutaDe } from '../utils/notificaciones';
 
 // Campana del navbar: contador de no leídas y las notificaciones más recientes.
 // Se actualiza sola con Socket.io (AvisosTiempoReal invalida la consulta al llegar una nueva).
