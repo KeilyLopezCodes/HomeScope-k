@@ -128,6 +128,12 @@ export class PropiedadesService {
     return { lat: Number(propiedad.latitud), lng: Number(propiedad.longitud) };
   }
 
+  // Datos que necesita la mensajería para abrir una conversación (dueño y estado)
+  async datosParaConversacion(propiedadId) {
+    const propiedad = await repo.buscarUbicacion(propiedadId);
+    return propiedad && { estado: propiedad.estado, vendedor_id: propiedad.vendedor_id };
+  }
+
   // Datos que necesita el cálculo del índice (trabajo interno, sin regla de visibilidad)
   async datosParaIndice(propiedadId) {
     const propiedad = await repo.buscarUbicacion(propiedadId);

@@ -1,17 +1,13 @@
 import { createServer } from 'http';
-import { Server } from 'socket.io';
 import app from './app.js';
 import { env } from './config/env.js';
 import { iniciarTrabajos, detenerTrabajos } from './jobs/index.js';
+import { realtime } from './shared/adapters/realtime.adapter.js';
 
 const httpServer = createServer(app);
 
-export const io = new Server(httpServer, {
-  cors: { origin: env.CORS_ORIGIN, credentials: true },
-});
-
-// TODO: Configurar autenticación de Socket.io y salas por usuario (sección 10.3)
-io.on('connection', (_socket) => {});
+// Socket.io autenticado con el access token y una sala por usuario (arquitectura §10.3)
+realtime.iniciar(httpServer);
 
 httpServer.listen(env.PORT, () => {
   console.log(`API corriendo en puerto ${env.PORT}`);

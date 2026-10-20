@@ -59,6 +59,8 @@ model Usuario {
   historial_precios HistorialPrecio[] @relation("HistorialPrecioCambio")
   conversaciones_comprador Conversacion[] @relation("ConversacionComprador")
   conversaciones_vendedor  Conversacion[] @relation("ConversacionVendedor")
+  mensajes_enviados        Mensaje[]
+  notificaciones           Notificacion[]
 
   @@map("usuario")
 }
@@ -189,6 +191,7 @@ model Conversacion {
   propiedad         Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
   comprador         Usuario   @relation("ConversacionComprador", fields: [comprador_id], references: [id])
   vendedor          Usuario   @relation("ConversacionVendedor", fields: [vendedor_id], references: [id])
+  mensajes          Mensaje[]
 
   @@unique([propiedad_id, comprador_id])
   @@index([comprador_id])
@@ -278,4 +281,37 @@ model SubPuntajeCategoria {
 
   @@id([indice_id, categoria_id])
   @@map("sub_puntaje_categoria")
+}
+
+// ─── Comunicación: mensajes y notificaciones (arquitectura §10.3) ───────────
+
+model Mensaje {
+  id              BigInt       @id @default(autoincrement())
+  conversacion_id Int
+  remitente_id    Int
+  contenido       String       @db.VarChar(2000)
+  fecha_envio     DateTime     @default(now()) @db.Timestamptz
+  leido_en        DateTime?    @db.Timestamptz
+  conversacion    Conversacion @relation(fields: [conversacion_id], references: [id], onDelete: Cascade)
+  remitente       Usuario      @relation(fields: [remitente_id], references: [id])
+
+  @@index([conversacion_id, fecha_envio])
+  @@map("mensaje")
+}
+
+model Notificacion {
+  id              BigInt   @id @default(autoincrement())
+  usuario_id      Int
+  tipo            String   @db.VarChar(30) // mensaje|visita|resena|expiracion|verificacion|sistema
+  titulo          String   @db.VarChar(150)
+  contenido       String   @db.VarChar(500)
+  referencia_tipo String?  @db.VarChar(30) // p. ej. 'conversacion'
+  referencia_id   Int?
+  leida           Boolean  @default(false)
+  enviada_correo  Boolean  @default(false)
+  fecha_creacion  DateTime @default(now()) @db.Timestamptz
+  usuario         Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id, leida, fecha_creacion])
+  @@map("notificacion")
 }
