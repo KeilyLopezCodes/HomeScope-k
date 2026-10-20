@@ -135,7 +135,34 @@ const limiteFicha = rateLimit({
  */
 router.get('/puntos-interes', authenticate, limitePlaces, controller.buscarPuntosInteres);
 
-router.get('/propiedades/:id/indice', controller.getIndice);
+/**
+ * @openapi
+ * /geo/propiedades/{id}/indice:
+ *   get:
+ *     tags: [Geo e índice]
+ *     summary: Índice de Conveniencia de una propiedad junto con los comentarios de su zona
+ *     description: |
+ *       Índice vigente con su desglose por categoría (misma forma que en la ficha) y los 5 comentarios de
+ *       zona más recientes. Para ver más comentarios: `GET /propiedades/{id}/comentarios-zona`.
+ *       Misma visibilidad que la ficha: una propiedad no publicada responde 404, salvo para su dueño y el administrador.
+ *     security: [{}, { bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Índice y comentarios.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 propiedad_id:        { type: integer }
+ *                 indice_estado:       { type: string, enum: [calculado, en_calculo, sin_ubicacion] }
+ *                 indice_conveniencia: { type: object, nullable: true, description: "{ puntaje, nivel, subpuntajes, … } o null" }
+ *                 comentarios_zona:    { type: object, description: "{ data, total, page, pageSize, mi_elegibilidad? }" }
+ *       404: { description: La propiedad no existe o no está publicada. }
+ */
+router.get('/propiedades/:id/indice', optionalAuth, controller.getIndice);
 /**
  * @openapi
  * /geo/propiedades/{id}/puntos-interes:

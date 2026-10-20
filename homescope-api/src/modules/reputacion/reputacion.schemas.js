@@ -27,5 +27,14 @@ export const elegibilidadSchema = z.object({
 // GET /vendedores/:id/resenas
 export const listarResenasSchema = z.object(paginacion);
 
-// TODO: comentarios de zona (comentario_zona)
-export const crearComentarioZonaSchema = z.object({});
+// POST /propiedades/:id/comentarios-zona
+export const crearComentarioZonaSchema = z.object({
+  comentario: z.string({ required_error: 'Escribe tu comentario sobre la zona' })
+    .transform((v) => v.replace(/<[^>]*>/g, '').trim())
+    .pipe(z.string()
+      .min(10, 'Cuéntanos un poco más: al menos 10 caracteres')
+      .max(1000, 'El comentario puede tener como máximo 1000 caracteres')),
+});
+
+// GET /propiedades/:id/comentarios-zona
+export const listarComentariosSchema = z.object(paginacion);

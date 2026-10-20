@@ -35,5 +35,11 @@ export async function puntosInteresDePropiedad(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// TODO: índice precalculado de una propiedad (ADR-08)
-export const getIndice = (_req, res) => res.status(501).json({ message: 'Not implemented' });
+export async function getIndice(req, res, next) {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) throw new AppError('ID_INVALIDO', 'ID inválido', 400);
+    const solicitante = req.user ? { id: req.user.sub, roles: req.user.roles } : null;
+    res.json(await service.indiceConComentarios(id, solicitante));
+  } catch (err) { next(err); }
+}

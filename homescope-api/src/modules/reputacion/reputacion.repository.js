@@ -7,7 +7,54 @@ const RESENA_SELECT = {
   propiedad: { select: { id: true, titulo: true } },
 };
 
+const COMENTARIO_SELECT = {
+  id: true, comentario: true, estado: true, fecha_creacion: true, propiedad_id: true,
+  usuario: { select: { id: true, nombre: true } },
+};
+
 export class ReputacionRepository {
+  // ── Comentarios de la zona ─────────────────────────────────────────────────
+
+  async buscarComentario(usuarioId, propiedadId) {
+    return prisma.comentarioZona.findUnique({
+      where:  { propiedad_id_usuario_id: { propiedad_id: propiedadId, usuario_id: usuarioId } },
+      select: COMENTARIO_SELECT,
+    });
+  }
+
+  async buscarComentarioPorId(id) {
+    return prisma.comentarioZona.findUnique({ where: { id }, select: COMENTARIO_SELECT });
+  }
+
+  async crearComentario(usuarioId, propiedadId, comentario) {
+    return prisma.comentarioZona.create({
+      data:   { usuario_id: usuarioId, propiedad_id: propiedadId, comentario },
+      select: COMENTARIO_SELECT,
+    });
+  }
+
+  // Solo los visibles, del más reciente al más antiguo
+  async listarComentarios(propiedadId, { page, pageSize }) {
+    const where = { propiedad_id: propiedadId, estado: 'visible' };
+    const [items, total] = await prisma.$transaction([
+      prisma.comentarioZona.findMany({
+        where,
+        orderBy: [{ fecha_creacion: 'desc' }, { id: 'desc' }],
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+        select:  COMENTARIO_SELECT,
+      }),
+      prisma.comentarioZona.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  async cambiarEstadoComentario(id, estado) {
+    return prisma.comentarioZona.update({ where: { id }, data: { estado }, select: COMENTARIO_SELECT });
+  }
+
+  // ── Reseñas ────────────────────────────────────────────────────────────────
+
   async buscarDeComprador(compradorId, propiedadId) {
     return prisma.resena.findUnique({
       where:  { comprador_id_propiedad_id: { comprador_id: compradorId, propiedad_id: propiedadId } },

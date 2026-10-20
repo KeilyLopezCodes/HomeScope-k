@@ -2,9 +2,12 @@ import { maps } from '../../shared/adapters/googleMaps.adapter.js';
 import { CATEGORIAS_INTERES, RADIO_CONSULTA_M } from './geo-indice.schemas.js';
 import { GeoIndiceRepository } from './geo-indice.repository.js';
 import { PARAMETROS, VERSION_ALGORITMO, calcularIndice, validarPesos } from './indice.algoritmo.js';
-import { PropiedadesService } from '../propiedades/propiedades.service.js';
+import { PropiedadesService, formatearIndice } from '../propiedades/propiedades.service.js';
+import { ReputacionService } from '../reputacion/reputacion.service.js';
 
 const propiedadesService = new PropiedadesService();
+const reputacionService = new ReputacionService();
+const COMENTARIOS_CON_INDICE = 5;
 const repo = new GeoIndiceRepository();
 
 // Tiempo estimado sin llamar a Distance Matrix (que se cobra aparte): la distancia en línea recta
@@ -64,6 +67,22 @@ export function tiempoEstimado(distancia) {
 const redondear6 = (x) => Math.round(x * 1e6) / 1e6;
 
 export class GeoIndiceService {
+  // GET /geo/propiedades/:id/indice: índice vigente con su desglose y los comentarios más recientes de la zona
+  async indiceConComentarios(propiedadId, solicitante = null) {
+    const propiedad = await propiedadesService.verificarVisible(propiedadId, solicitante);
+    const [indices, comentarios] = await Promise.all([
+      repo.indicesVigentes([propiedadId], { desglose: true }),
+      reputacionService.comentariosZona(propiedadId, { page: 1, pageSize: COMENTARIOS_CON_INDICE }, solicitante),
+    ]);
+    const indice = formatearIndice(indices.get(propiedadId));
+    return {
+      propiedad_id:        propiedadId,
+      indice_estado:       indice ? 'calculado' : propiedad.sin_ubicacion ? 'sin_ubicacion' : 'en_calculo',
+      indice_conveniencia: indice,
+      comentarios_zona:    comentarios,
+    };
+  }
+
   // Calcula el Índice de Conveniencia de una propiedad y lo guarda (trabajo `calcular-indice`, ADR-08).
   // Si Google falla en cualquier categoría lanza el error para que pg-boss reintente: nunca se guarda un
   // índice parcial. Devuelve el índice guardado o { omitido: motivo } cuando no corresponde calcular.

@@ -1,5 +1,7 @@
 import { ReputacionService } from './reputacion.service.js';
-import { crearResenaSchema, elegibilidadSchema, listarResenasSchema } from './reputacion.schemas.js';
+import {
+  crearResenaSchema, elegibilidadSchema, listarResenasSchema, crearComentarioZonaSchema, listarComentariosSchema,
+} from './reputacion.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
 const service = new ReputacionService();
@@ -48,6 +50,18 @@ export async function getResenasVendedor(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// TODO: comentarios de zona (comentario_zona)
-export const getComentariosZona = (_req, res) => res.status(501).json({ message: 'Not implemented' });
-export const crearComentarioZona = (_req, res) => res.status(501).json({ message: 'Not implemented' });
+// ── Comentarios de la zona de una propiedad ─────────────────────────────────
+
+export async function getComentariosZona(req, res, next) {
+  try {
+    const solicitante = req.user ? { id: req.user.sub, roles: req.user.roles } : null;
+    res.json(await service.comentariosZona(parseId(req.params.id), validar(listarComentariosSchema, req.query), solicitante));
+  } catch (err) { next(err); }
+}
+
+export async function crearComentarioZona(req, res, next) {
+  try {
+    const { comentario } = validar(crearComentarioZonaSchema, req.body);
+    res.status(201).json(await service.crearComentarioZona(req.user.sub, parseId(req.params.id), comentario));
+  } catch (err) { next(err); }
+}

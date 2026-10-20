@@ -18,7 +18,7 @@ const reputacionRepo   = new ReputacionRepository();
 const ROLES_ADMIN = ['administrador', 'admin'];
 
 // Índice vigente → forma pública. Sin desglose para el catálogo, con desglose para la ficha (RNF-10)
-function formatearIndice(fila) {
+export function formatearIndice(fila) {
   if (!fila) return null;
   return {
     puntaje:           Number(fila.puntaje_total),
@@ -129,6 +129,19 @@ export class PropiedadesService {
     if (propiedad.latitud == null || propiedad.longitud == null)
       throw new AppError('SIN_UBICACION', 'La propiedad no tiene coordenadas registradas', 422);
     return { lat: Number(propiedad.latitud), lng: Number(propiedad.longitud) };
+  }
+
+  // Misma regla de visibilidad que la ficha (404 si no está publicada, salvo para su dueño y el administrador)
+  async verificarVisible(propiedadId, solicitante = null) {
+    const propiedad = await repo.buscarUbicacion(propiedadId);
+    if (!propiedad) throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
+    this._verificarVisible(propiedad.estado, propiedad.vendedor_id, solicitante);
+    return {
+      id:          propiedad.id,
+      estado:      propiedad.estado,
+      vendedor_id: propiedad.vendedor_id,
+      sin_ubicacion: propiedad.latitud == null || propiedad.longitud == null,
+    };
   }
 
   // Datos que necesita la mensajería para abrir una conversación (dueño y estado)

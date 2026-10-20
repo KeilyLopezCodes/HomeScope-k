@@ -65,6 +65,9 @@ model Usuario {
   visitas_solicitadas      Visita[]
   resenas_recibidas        Resena[]  @relation("ResenaVendedor")
   resenas_escritas         Resena[]  @relation("ResenaComprador")
+  comentarios_zona         ComentarioZona[]
+  reportes_hechos          Reporte[] @relation("ReporteReportante")
+  reportes_recibidos       Reporte[] @relation("ReporteUsuario")
 
   @@map("usuario")
 }
@@ -126,6 +129,8 @@ model Propiedad {
   disponibilidad     DisponibilidadVendedor[]
   visitas            Visita[]
   resenas            Resena[]
+  comentarios_zona   ComentarioZona[]
+  reportes           Reporte[]
 
   @@index([vendedor_id])
   @@index([estado, tipo_propiedad_id, modalidad, precio])
@@ -377,4 +382,44 @@ model Resena {
   @@unique([comprador_id, propiedad_id], map: "ux_resena")
   @@index([vendedor_id, fecha_creacion])
   @@map("resena")
+}
+
+// Comentarios sobre la zona de una propiedad (uno por persona y propiedad)
+model ComentarioZona {
+  id             Int       @id @default(autoincrement())
+  propiedad_id   Int
+  usuario_id     Int
+  comentario     String    @db.VarChar(1000)
+  estado         String    @default("visible") @db.VarChar(10) // visible|oculto
+  fecha_creacion DateTime  @default(now()) @db.Timestamptz
+  propiedad      Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  usuario        Usuario   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  reportes       Reporte[]
+
+  @@unique([propiedad_id, usuario_id], map: "ux_comentario_zona")
+  @@index([propiedad_id, estado, fecha_creacion])
+  @@map("comentario_zona")
+}
+
+// ─── Moderación ─────────────────────────────────────────────────────────────
+
+// Reporte de un usuario sobre una propiedad, un usuario o un comentario de zona
+model Reporte {
+  id                   Int             @id @default(autoincrement())
+  reportante_id        Int
+  tipo_objetivo        String          @db.VarChar(20) // propiedad|usuario|comentario
+  propiedad_id         Int?
+  usuario_reportado_id Int?
+  comentario_zona_id   Int?
+  motivo               String          @db.VarChar(50)
+  descripcion          String?         @db.VarChar(1000)
+  estado               String          @default("pendiente") @db.VarChar(20) // pendiente|en_revision|resuelto|descartado
+  fecha_creacion       DateTime        @default(now()) @db.Timestamptz
+  reportante           Usuario         @relation("ReporteReportante", fields: [reportante_id], references: [id], onDelete: Cascade)
+  usuario_reportado    Usuario?        @relation("ReporteUsuario", fields: [usuario_reportado_id], references: [id], onDelete: Cascade)
+  propiedad            Propiedad?      @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  comentario_zona      ComentarioZona? @relation(fields: [comentario_zona_id], references: [id], onDelete: Cascade)
+
+  @@index([estado, fecha_creacion])
+  @@map("reporte")
 }

@@ -26,6 +26,23 @@ const MOTIVOS = {
   SIN_CONTACTO_NI_VISITA: 'Solo puedes calificar al vendedor si le escribiste por esta propiedad o ya la visitaste.',
 };
 
+const MOTIVOS_COMENTARIO = {
+  PROPIEDAD_PROPIA:       'El vendedor no puede comentar la zona de su propia propiedad.',
+  YA_COMENTO:             'Ya comentaste la zona de esta propiedad.',
+  SIN_CONTACTO_NI_VISITA: 'Solo puedes comentar la zona si le escribiste al vendedor por esta propiedad o ya la visitaste.',
+};
+
+const STATUS_MOTIVO = { PROPIEDAD_PROPIA: 422, YA_RESENADA: 409, YA_COMENTO: 409, SIN_CONTACTO_NI_VISITA: 403 };
+
+// Comentario de zona → forma pública (del autor solo el nombre, RNF-08)
+const formatearComentario = (c, usuarioId = null) => ({
+  id:             c.id,
+  comentario:     c.comentario,
+  fecha_creacion: c.fecha_creacion,
+  autor:          c.usuario,
+  es_mio:         usuarioId != null && c.usuario.id === usuarioId,
+});
+
 const redondear1 = (n) => (n == null ? null : Math.round(n * 10) / 10);
 
 // Promedio con un decimal y cuántas reseñas hay de cada calificación (las cinco, aunque sea 0)
@@ -38,6 +55,16 @@ export function formatearResumen({ promedio, total, distribucion }) {
 }
 
 export class ReputacionService {
+  // Regla común de reseñas y comentarios de zona: el usuario escribió en la conversación de la propiedad
+  // o tuvo una visita confirmada que ya ocurrió. Devuelve qué le da derecho: ['contacto', 'visita'] o []
+  async contactoPrevio(usuarioId, propiedadId) {
+    const [contacto, visita] = await Promise.all([
+      comunicacionRepo.compradorEscribio(propiedadId, usuarioId),
+      agendaRepo.visitaRealizada(propiedadId, usuarioId),
+    ]);
+    return [contacto && 'contacto', visita && 'visita'].filter(Boolean);
+  }
+
   // ¿Puede este comprador calificar al vendedor de la propiedad? → { puede_resenar, motivo, mensaje, por, resena }
   async elegibilidad(compradorId, propiedadId) {
     const propiedad = await propiedadesService.datosParaConversacion(propiedadId);
@@ -52,20 +79,15 @@ export class ReputacionService {
     const existente = await repo.buscarDeComprador(compradorId, propiedadId);
     if (existente) return respuesta('YA_RESENADA', { resena: existente });
 
-    const [contacto, visita] = await Promise.all([
-      comunicacionRepo.compradorEscribio(propiedadId, compradorId),
-      agendaRepo.visitaRealizada(propiedadId, compradorId),
-    ]);
     // `por`: qué le da derecho a calificar (para mostrarlo en la reseña o en la interfaz)
-    const por = [contacto && 'contacto', visita && 'visita'].filter(Boolean);
+    const por = await this.contactoPrevio(compradorId, propiedadId);
     return por.length ? respuesta(null, { por }) : respuesta('SIN_CONTACTO_NI_VISITA');
   }
 
   async crearResena(compradorId, { propiedad_id, calificacion, comentario }) {
     const permiso = await this.elegibilidad(compradorId, propiedad_id);
     if (!permiso.puede_resenar) {
-      const status = { PROPIEDAD_PROPIA: 422, YA_RESENADA: 409, SIN_CONTACTO_NI_VISITA: 403 }[permiso.motivo];
-      throw new AppError(permiso.motivo, permiso.mensaje, status);
+      throw new AppError(permiso.motivo, permiso.mensaje, STATUS_MOTIVO[permiso.motivo]);
     }
 
     const { vendedor_id } = await propiedadesService.datosParaConversacion(propiedad_id);
@@ -86,6 +108,53 @@ export class ReputacionService {
       referencia_id: resena.id,
     });
     return resena;
+  }
+
+  // ── Comentarios de la zona ─────────────────────────────────────────────────
+
+  // ¿Puede este usuario comentar la zona de la propiedad? Misma regla de contacto o visita que las reseñas
+  async elegibilidadComentario(usuarioId, propiedadId, propiedad = null) {
+    propiedad ??= await propiedadesService.datosParaConversacion(propiedadId);
+    if (!propiedad) throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
+
+    const respuesta = (motivo, extra = {}) => ({
+      puede_comentar: !motivo, motivo, mensaje: motivo ? MOTIVOS_COMENTARIO[motivo] : null, ...extra,
+    });
+    if (propiedad.vendedor_id === usuarioId) return respuesta('PROPIEDAD_PROPIA');
+
+    const existente = await repo.buscarComentario(usuarioId, propiedadId);
+    if (existente) return respuesta('YA_COMENTO', { comentario: formatearComentario(existente, usuarioId) });
+
+    const por = await this.contactoPrevio(usuarioId, propiedadId);
+    return por.length ? respuesta(null, { por }) : respuesta('SIN_CONTACTO_NI_VISITA');
+  }
+
+  async crearComentarioZona(usuarioId, propiedadId, texto) {
+    const propiedad = await propiedadesService.datosParaConversacion(propiedadId);
+    if (!propiedad || propiedad.estado !== 'publicado') throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
+
+    const permiso = await this.elegibilidadComentario(usuarioId, propiedadId, propiedad);
+    if (!permiso.puede_comentar) throw new AppError(permiso.motivo, permiso.mensaje, STATUS_MOTIVO[permiso.motivo]);
+
+    try {
+      return formatearComentario(await repo.crearComentario(usuarioId, propiedadId, texto), usuarioId);
+    } catch (err) {
+      if (err.code === 'P2002') throw new AppError('YA_COMENTO', MOTIVOS_COMENTARIO.YA_COMENTO, 409);
+      throw err;
+    }
+  }
+
+  // Comentarios visibles de la zona de una propiedad (los ocultados por moderación no salen).
+  // Con sesión incluye `mi_elegibilidad`, para que la interfaz sepa si mostrar el formulario.
+  async comentariosZona(propiedadId, paginacion, solicitante = null) {
+    await propiedadesService.verificarVisible(propiedadId, solicitante);
+    const { items, total } = await repo.listarComentarios(propiedadId, paginacion);
+    return {
+      data: items.map((c) => formatearComentario(c, solicitante?.id)),
+      total,
+      ...paginacion,
+      ...(solicitante && { mi_elegibilidad: await this.elegibilidadComentario(solicitante.id, propiedadId) }),
+    };
   }
 
   // Perfil público del vendedor con su calificación promedio (RF-30)

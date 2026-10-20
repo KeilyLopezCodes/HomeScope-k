@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { authenticate, requirePermission } from '../../shared/middleware/auth.js';
+import { authenticate, optionalAuth, requirePermission } from '../../shared/middleware/auth.js';
 import * as controller from './reputacion.controller.js';
 
-// Dos recursos: las reseñas (/resenas) y el perfil público de cada vendedor (/vendedores)
+// Tres recursos: las reseñas (/resenas), el perfil público de cada vendedor (/vendedores)
+// y los comentarios sobre la zona de una propiedad (/propiedades/:id/comentarios-zona)
 
 /**
  * @openapi
@@ -71,9 +72,6 @@ resenasRouter.post('/', authenticate, requirePermission('resena.crear'), control
  */
 resenasRouter.get('/elegibilidad', authenticate, controller.getElegibilidad);
 
-// TODO: comentarios de zona (comentario_zona)
-resenasRouter.get('/zonas/:zona', controller.getComentariosZona);
-resenasRouter.post('/zonas/:zona', authenticate, controller.crearComentarioZona);
 
 export const vendedoresRouter = Router();
 
@@ -126,3 +124,77 @@ vendedoresRouter.get('/:id', controller.getPerfilVendedor);
  *       404: { description: No existe o no es un vendedor visible. }
  */
 vendedoresRouter.get('/:id/resenas', controller.getResenasVendedor);
+
+// ── /propiedades/:id/comentarios-zona ─────────────────────────────────────────
+export const comentariosZonaRouter = Router({ mergeParams: true });
+
+/**
+ * @openapi
+ * tags:
+ *   name: Comentarios de zona
+ *   description: |
+ *     Opiniones sobre la zona de una propiedad (seguridad, ruido, servicios…), uno por persona y propiedad.
+ *     Solo comenta quien tuvo contacto real con la propiedad (misma regla que las reseñas). Se pueden
+ *     reportar con `POST /reportes`; el administrador puede ocultarlos.
+ */
+
+/**
+ * @openapi
+ * /propiedades/{id}/comentarios-zona:
+ *   get:
+ *     tags: [Comentarios de zona]
+ *     summary: Comentarios visibles sobre la zona de una propiedad
+ *     description: |
+ *       Del más reciente al más antiguo; los ocultados por moderación no aparecen. Con sesión incluye
+ *       `mi_elegibilidad` ({ puede_comentar, motivo, mensaje, por, comentario }) para mostrar u ocultar el formulario.
+ *     security: [{}, { bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *       - { in: query, name: page, schema: { type: integer, default: 1 } }
+ *       - { in: query, name: pageSize, schema: { type: integer, default: 10, maximum: 50 } }
+ *     responses:
+ *       200:
+ *         description: Página de comentarios.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:             { type: integer }
+ *                       comentario:     { type: string, example: "Zona tranquila, con tiendas y farmacia a dos cuadras." }
+ *                       fecha_creacion: { type: string, format: date-time }
+ *                       autor:          { type: object, properties: { id: { type: integer }, nombre: { type: string } } }
+ *                       es_mio:         { type: boolean }
+ *                 total:           { type: integer }
+ *                 mi_elegibilidad: { type: object, description: "Solo con sesión" }
+ *       404: { description: La propiedad no existe o no está publicada. }
+ *   post:
+ *     tags: [Comentarios de zona]
+ *     summary: Comentar la zona de una propiedad
+ *     description: Requiere haberle escrito al vendedor por esta propiedad o haberla visitado. Uno por persona y propiedad.
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [comentario]
+ *             properties:
+ *               comentario: { type: string, minLength: 10, maxLength: 1000, example: "Zona tranquila de noche, el bus pasa cada 15 minutos." }
+ *     responses:
+ *       201: { description: Comentario publicado. }
+ *       403: { description: "SIN_CONTACTO_NI_VISITA — no escribió por esta propiedad ni la visitó." }
+ *       404: { description: La propiedad no existe o no está publicada. }
+ *       409: { description: "YA_COMENTO — ya comentó la zona de esta propiedad." }
+ *       422: { description: "Comentario muy corto o largo, o PROPIEDAD_PROPIA." }
+ */
+comentariosZonaRouter.get('/', optionalAuth, controller.getComentariosZona);
+comentariosZonaRouter.post('/', authenticate, requirePermission('comentario_zona.crear'), controller.crearComentarioZona);
