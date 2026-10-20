@@ -61,6 +61,8 @@ model Usuario {
   conversaciones_vendedor  Conversacion[] @relation("ConversacionVendedor")
   mensajes_enviados        Mensaje[]
   notificaciones           Notificacion[]
+  disponibilidad           DisponibilidadVendedor[]
+  visitas_solicitadas      Visita[]
 
   @@map("usuario")
 }
@@ -119,6 +121,8 @@ model Propiedad {
   historial_precios  HistorialPrecio[]
   puntos_interes     PuntoInteres[]
   indices            IndiceConveniencia[]
+  disponibilidad     DisponibilidadVendedor[]
+  visitas            Visita[]
 
   @@index([vendedor_id])
   @@index([estado, tipo_propiedad_id, modalidad, precio])
@@ -314,4 +318,41 @@ model Notificacion {
 
   @@index([usuario_id, leida, fecha_creacion])
   @@map("notificacion")
+}
+
+// ─── Agenda: disponibilidad del vendedor y visitas (hora de Guatemala) ──────
+
+// Franjas semanales; propiedad_id null = aplica a todas las propiedades del vendedor
+model DisponibilidadVendedor {
+  id           Int        @id @default(autoincrement())
+  vendedor_id  Int
+  propiedad_id Int?
+  dia_semana   Int        @db.SmallInt // 1 = lunes … 7 = domingo
+  hora_inicio  DateTime   @db.Time(0)
+  hora_fin     DateTime   @db.Time(0)
+  activa       Boolean    @default(true)
+  vendedor     Usuario    @relation(fields: [vendedor_id], references: [id], onDelete: Cascade)
+  propiedad    Propiedad? @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@index([vendedor_id])
+  @@map("disponibilidad_vendedor")
+}
+
+model Visita {
+  id                    Int       @id @default(autoincrement())
+  propiedad_id          Int
+  comprador_id          Int
+  fecha_hora_solicitada DateTime  @db.Timestamptz
+  fecha_hora_confirmada DateTime? @db.Timestamptz
+  estado                String    @default("solicitada") @db.VarChar(20) // solicitada|confirmada|reprogramada|cancelada
+  nota_comprador        String?   @db.VarChar(300)
+  recordatorio_enviado  Boolean   @default(false)
+  fecha_creacion        DateTime  @default(now()) @db.Timestamptz
+  fecha_actualizacion   DateTime  @default(now()) @updatedAt @db.Timestamptz
+  propiedad             Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  comprador             Usuario   @relation(fields: [comprador_id], references: [id], onDelete: Cascade)
+
+  @@index([propiedad_id, estado])
+  @@index([comprador_id])
+  @@map("visita")
 }
