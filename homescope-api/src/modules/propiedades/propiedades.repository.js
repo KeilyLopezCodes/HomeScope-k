@@ -115,6 +115,10 @@ export class PropiedadesRepository {
     });
   }
 
+  async contarPublicadasDe(vendedorId) {
+    return prisma.propiedad.count({ where: { vendedor_id: vendedorId, estado: 'publicado' } });
+  }
+
   async listarPorVendedor(vendedorId) {
     return prisma.propiedad.findMany({
       where:   { vendedor_id: vendedorId },

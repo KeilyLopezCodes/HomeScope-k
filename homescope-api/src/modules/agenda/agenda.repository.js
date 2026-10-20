@@ -142,6 +142,18 @@ export class AgendaRepository {
     return { items, total };
   }
 
+  // ¿El comprador tuvo una visita confirmada o reprogramada a esa propiedad cuya hora ya pasó? (reseñas, RF-30)
+  async visitaRealizada(propiedadId, compradorId, ahora = new Date()) {
+    const visita = await prisma.visita.findFirst({
+      where: {
+        propiedad_id: propiedadId, comprador_id: compradorId,
+        estado: { in: ['confirmada', 'reprogramada'] }, fecha_hora_confirmada: { lte: ahora },
+      },
+      select: { id: true },
+    });
+    return visita !== null;
+  }
+
   // ── Recordatorios ──────────────────────────────────────────────────────────
 
   // Visitas confirmadas o reprogramadas entre ahora y `hasta` que aún no tienen recordatorio.

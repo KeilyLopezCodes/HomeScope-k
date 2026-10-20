@@ -46,6 +46,17 @@ export class IdentidadRepository {
     });
   }
 
+  // Datos públicos de un usuario (perfil del vendedor): sin correo, teléfono ni nada de la cuenta (RNF-08)
+  async perfilPublico(id) {
+    return prisma.usuario.findUnique({
+      where:  { id },
+      select: {
+        id: true, nombre: true, apellido: true, foto_url: true, fecha_registro: true, estado: true,
+        usuario_rol: { select: { rol: { select: { nombre: true } } } },
+      },
+    });
+  }
+
   async actualizarUsuario(id, datos) {
     return prisma.usuario.update({
       where: { id },

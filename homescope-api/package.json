@@ -18,7 +18,8 @@
     "indice:recalcular": "node src/jobs/recalcular-indices.js",
     "db:seed:indices-fake": "node prisma/seed-indices-fake.js",
     "visitas:recordatorios": "node src/jobs/enviar-recordatorios.js",
-    "db:seed:agenda": "node prisma/seed-agenda.js"
+    "db:seed:agenda": "node prisma/seed-agenda.js",
+    "db:seed:resenas": "node prisma/seed-resenas.js"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",

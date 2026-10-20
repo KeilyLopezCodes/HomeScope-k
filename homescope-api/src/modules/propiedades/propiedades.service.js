@@ -3,6 +3,7 @@ import { PropiedadesRepository } from './propiedades.repository.js';
 import { ComunicacionRepository } from '../comunicacion/comunicacion.repository.js';
 import { FavoritosRepository } from '../favoritos/favoritos.repository.js';
 import { GeoIndiceRepository } from '../geo-indice/geo-indice.repository.js';
+import { ReputacionRepository } from '../reputacion/reputacion.repository.js';
 import { TRANSICIONES, FOTOS_CONFIG } from './propiedades.schemas.js';
 import { storage } from '../../shared/adapters/storage/index.js';
 import { jobs } from '../../shared/adapters/jobs.adapter.js';
@@ -12,6 +13,7 @@ const repo            = new PropiedadesRepository();
 const comunicacionRepo = new ComunicacionRepository();
 const favoritosRepo    = new FavoritosRepository();
 const geoIndiceRepo    = new GeoIndiceRepository();
+const reputacionRepo   = new ReputacionRepository();
 
 const ROLES_ADMIN = ['administrador', 'admin'];
 
@@ -91,6 +93,7 @@ export class PropiedadesService {
     const esFavorito = solicitanteId && !esDueno
       ? Boolean(await favoritosRepo.existe(solicitanteId, propiedadId))
       : false;
+    const reputacion = await reputacionRepo.resumenDeVendedor(vendedor.id);
     const indice = formatearIndice(
       (await geoIndiceRepo.indicesVigentes([propiedadId], { desglose: true })).get(propiedadId));
     const sinUbicacion = propiedad.latitud == null || propiedad.longitud == null;
@@ -102,10 +105,10 @@ export class PropiedadesService {
         nombre:   vendedor.nombre,
         apellido: vendedor.apellido,
         foto_url: vendedor.foto_url,
-        // TODO: tomar de verificacion_vendedor y de las reseñas cuando existan esos módulos
+        // TODO: tomar de verificacion_vendedor cuando exista ese módulo
         verificado:            false,
-        calificacion_promedio: null,
-        total_resenas:         0,
+        calificacion_promedio: reputacion.promedio == null ? null : Math.round(reputacion.promedio * 10) / 10,
+        total_resenas:         reputacion.total,
         ...(contactoVisible && { email: vendedor.email, telefono: vendedor.telefono }),
       },
       // Índice precalculado por el trabajo calcular-indice (ADR-08). Los puntos de interés de la ficha

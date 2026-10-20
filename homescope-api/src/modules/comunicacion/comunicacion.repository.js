@@ -23,6 +23,15 @@ export class ComunicacionRepository {
     return conv !== null;
   }
 
+  // ¿El comprador escribió al menos un mensaje en la conversación de esa propiedad? (reseñas, RF-30)
+  async compradorEscribio(propiedadId, compradorId) {
+    const conv = await prisma.conversacion.findFirst({
+      where:  { propiedad_id: propiedadId, comprador_id: compradorId, mensajes: { some: { remitente_id: compradorId } } },
+      select: { id: true },
+    });
+    return conv !== null;
+  }
+
   // ── Conversaciones ─────────────────────────────────────────────────────────
 
   async buscarPorPropiedadYComprador(propiedadId, compradorId) {
