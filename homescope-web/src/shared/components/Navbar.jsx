@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   Home, Map, Heart, MessageSquare, CalendarDays,
-  PlusSquare, LayoutDashboard, ShieldCheck, Bell,
+  PlusSquare, LayoutDashboard, ShieldCheck,
   LogIn, UserPlus, User, LogOut, Menu, X, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/authContext';
+import { CampanaNotificaciones } from '../../features/mensajes';
 
 /* ── Definición de nav items por rol ─────────────────────────── */
 const VISITOR_LINKS = [
@@ -87,13 +88,8 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-2 shrink-0">
           {user ? (
             <>
-              {/* Notificaciones */}
-              <button className="relative p-2 rounded-md text-gray-600 hover:bg-gray-100">
-                <Bell size={18} />
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center leading-none">
-                  0
-                </span>
-              </button>
+              {/* Notificaciones (en tiempo real) */}
+              <CampanaNotificaciones />
 
               {/* Menú usuario */}
               <div className="relative">
@@ -136,14 +132,17 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Botón hamburguesa móvil */}
-        <button
-          className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
-          onClick={() => setMenuOpen(v => !v)}
-          aria-label="Abrir menú"
-        >
-          {menuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        {/* Móvil: campana y botón hamburguesa */}
+        <div className="md:hidden flex items-center gap-1">
+          {user && <CampanaNotificaciones />}
+          <button
+            className="p-2 rounded-md text-gray-600 hover:bg-gray-100"
+            onClick={() => setMenuOpen(v => !v)}
+            aria-label="Abrir menú"
+          >
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
 
       {/* Menú móvil desplegable */}

@@ -2,6 +2,8 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, VerificarCorreoPage, useAuth } from '../features/auth';
 import { PerfilPage } from '../features/perfil';
 import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage } from '../features/propiedades';
+import { MensajesPage, AvisosTiempoReal } from '../features/mensajes';
+import { SocketProvider } from '../shared/realtime/SocketProvider';
 import MainLayout from '../shared/components/MainLayout';
 import ComingSoonPage from '../shared/pages/ComingSoonPage';
 import NotFoundPage from '../shared/pages/NotFoundPage';
@@ -36,6 +38,9 @@ function PermissionRoute({ children, permiso }) {
 export default function App() {
   return (
     <AuthProvider>
+      <SocketProvider>
+      {/* Mensajes y notificaciones en tiempo real para toda la app (solo con sesión) */}
+      <AvisosTiempoReal />
       <Routes>
         {/* Auth — sin layout */}
         <Route path="/login"                    element={<LoginPage />} />
@@ -69,7 +74,10 @@ export default function App() {
           <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
         } />
         <Route path="/mensajes" element={
-          <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
+          <ProtectedRoute><MainLayout><MensajesPage /></MainLayout></ProtectedRoute>
+        } />
+        <Route path="/mensajes/:id" element={
+          <ProtectedRoute><MainLayout><MensajesPage /></MainLayout></ProtectedRoute>
         } />
         <Route path="/visitas" element={
           <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
@@ -123,6 +131,7 @@ export default function App() {
         {/* 404 */}
         <Route path="*" element={<MainLayout><NotFoundPage /></MainLayout>} />
       </Routes>
+      </SocketProvider>
     </AuthProvider>
   );
 }

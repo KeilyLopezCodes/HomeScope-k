@@ -7,7 +7,11 @@ export function setAccessToken(token) {
   accessToken = token;
 }
 
-async function refreshToken() {
+// Para la conexión de Socket.io, que se autentica con el mismo access token
+export const getAccessToken = () => accessToken;
+
+// Renueva el access token con la cookie de refresh; lanza un error si la sesión ya expiró
+export async function refreshToken() {
   const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
     method: 'POST',
     credentials: 'include',

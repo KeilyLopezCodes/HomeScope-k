@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarDays, Flag, Heart, MessageCircle, Pencil, Share2 } from 'lucide-react';
 import { Badge, Button, useToast } from '../../../shared/components/ui';
 import { useAuth } from '../../auth';
 import { useToggleFavorito } from '../../favoritos';
+import { ContactarVendedorModal } from '../../mensajes';
 
 // Lleva a iniciar sesión; LoginPage regresa a `from` (esta misma ficha) al autenticarse
 function useIrALogin() {
@@ -61,8 +63,9 @@ export default function AccionesPropiedad({ propiedad, queryKey }) {
   const navigate = useNavigate();
   const toast = useToast();
   const irALogin = useIrALogin();
+  const [contactando, setContactando] = useState(false);
 
-  // Mensajes, visitas y reportes dependen de módulos que aún no están listos
+  // Visitas y reportes dependen de módulos que aún no están listos
   function accionPendiente(mensaje) {
     if (!user) return irALogin();
     toast(`${mensaje} estará disponible próximamente.`, 'info');
@@ -101,9 +104,12 @@ export default function AccionesPropiedad({ propiedad, queryKey }) {
 
   return (
     <div className="space-y-2">
-      <Button size="lg" className="w-full" onClick={() => accionPendiente('Contactar al vendedor')}>
-        <MessageCircle size={16} aria-hidden="true" /> Contactar vendedor {PROXIMAMENTE}
+      <Button size="lg" className="w-full" onClick={() => (user ? setContactando(true) : irALogin())}>
+        <MessageCircle size={16} aria-hidden="true" /> Contactar vendedor
       </Button>
+      {contactando && (
+        <ContactarVendedorModal abierto onCerrar={() => setContactando(false)} propiedad={propiedad} />
+      )}
       <Button variant="secondary" className="w-full" onClick={() => accionPendiente('Solicitar una visita')}>
         <CalendarDays size={16} aria-hidden="true" /> Solicitar visita {PROXIMAMENTE}
       </Button>
