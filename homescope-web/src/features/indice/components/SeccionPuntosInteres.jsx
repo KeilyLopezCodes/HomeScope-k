@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Loader2, MapPin } from 'lucide-react';
+import { AlertCircle, ChevronDown, Loader2, MapPin } from 'lucide-react';
 import { Button } from '../../../shared/components/ui';
 import { MapaPropiedad } from '../../mapa';
 import { usePuntosInteres } from '../hooks/usePuntosInteres';
@@ -67,6 +67,8 @@ function FiltroCategorias({ seleccion, onToggle }) {
 export default function SeccionPuntosInteres({ propiedad, direccion }) {
   const [radio, setRadio] = useState(RADIO_INICIAL);
   const [categorias, setCategorias] = useState(CODIGOS_CATEGORIA);
+  // El listado empieza cerrado para no saturar la ficha; el resumen por categoría siempre se ve
+  const [listaAbierta, setListaAbierta] = useState(false);
   const tieneCoordenadas = propiedad.latitud != null && propiedad.longitud != null;
 
   const { data, isPending, isError, error, isFetching, isPlaceholderData, refetch } =
@@ -136,8 +138,38 @@ export default function SeccionPuntosInteres({ propiedad, direccion }) {
         </div>
       ) : (
         <div className={['transition-opacity', isPlaceholderData ? 'opacity-60' : ''].join(' ')} aria-busy={isPlaceholderData}>
-          <PuntosInteres grupos={data.categorias} radio={data.radio_m} />
-          <p className="mt-4 text-xs text-secondary-400">
+          <button
+            type="button"
+            onClick={() => setListaAbierta((v) => !v)}
+            aria-expanded={listaAbierta}
+            aria-controls="lista-puntos-interes"
+            className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-secondary-200 px-3 py-2.5 text-left hover:bg-secondary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+          >
+            <span className="text-sm font-medium text-secondary-800">
+              {listaAbierta ? 'Ocultar lugares encontrados' : `Ver los ${total} lugares encontrados`}
+            </span>
+            {/* Resumen compacto: icono y cantidad por categoría */}
+            <span className="flex flex-wrap items-center gap-3" aria-hidden="true">
+              {data.categorias.map((g) => (
+                <span key={g.categoria} className="inline-flex items-center gap-1 text-xs text-secondary-600" title={CATEGORIAS[g.categoria].nombre}>
+                  <IconoCategoria categoria={g.categoria} size={10} className="h-4 w-4" />
+                  {g.total}
+                </span>
+              ))}
+            </span>
+            <ChevronDown
+              size={16}
+              aria-hidden="true"
+              className={['ml-auto shrink-0 text-secondary-500 transition-transform', listaAbierta ? 'rotate-180' : ''].join(' ')}
+            />
+          </button>
+
+          {listaAbierta && (
+            <div id="lista-puntos-interes" className="mt-4">
+              <PuntosInteres grupos={data.categorias} radio={data.radio_m} />
+            </div>
+          )}
+          <p className="mt-3 text-xs text-secondary-400">
             Distancias en línea recta; los tiempos son estimados. Datos de Google.
           </p>
         </div>
