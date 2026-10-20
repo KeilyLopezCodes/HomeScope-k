@@ -40,7 +40,8 @@ export default function VentanaChat({ conversacionId }) {
   const { data, isPending, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useMensajes(conversacionId);
   const enviar = useEnviarMensaje(conversacionId);
   const marcarLeida = useMarcarLeida();
-  const { conectado } = useSocket();
+  const { estado } = useSocket();
+  const sinTiempoReal = ['reconectando', 'sin_internet'].includes(estado);
   const toast = useToast();
   const [texto, setTexto] = useState('');
 
@@ -126,9 +127,12 @@ export default function VentanaChat({ conversacionId }) {
             </Link>
           </p>
         </div>
-        {!conectado && (
-          <span className="flex items-center gap-1 text-xs text-warning-700" title="Los mensajes nuevos aparecerán al reconectar">
-            <WifiOff size={14} aria-hidden="true" /> Reconectando…
+        {sinTiempoReal && (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-medium text-warning-700"
+            title="Puedes seguir enviando mensajes. Los nuevos aparecen cada 15 segundos hasta que vuelva la conexión."
+          >
+            <WifiOff size={12} aria-hidden="true" /> Sin tiempo real
           </span>
         )}
       </div>

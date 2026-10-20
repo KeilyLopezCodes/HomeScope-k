@@ -2,7 +2,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, VerificarCorreoPage, useAuth } from '../features/auth';
 import { PerfilPage } from '../features/perfil';
 import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage } from '../features/propiedades';
-import { MensajesPage, AvisosTiempoReal } from '../features/mensajes';
+import { MensajesPage, AvisosTiempoReal, EstadoConexion } from '../features/mensajes';
 import { SocketProvider } from '../shared/realtime/SocketProvider';
 import MainLayout from '../shared/components/MainLayout';
 import ComingSoonPage from '../shared/pages/ComingSoonPage';
@@ -41,6 +41,7 @@ export default function App() {
       <SocketProvider>
       {/* Mensajes y notificaciones en tiempo real para toda la app (solo con sesión) */}
       <AvisosTiempoReal />
+      <EstadoConexion />
       <Routes>
         {/* Auth — sin layout */}
         <Route path="/login"                    element={<LoginPage />} />

@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIntervaloRespaldo } from '../../../shared/realtime/SocketProvider';
 import {
   enviarMensaje, listarConversaciones, listarNotificaciones,
   marcarConversacionLeida, marcarNotificacion, obtenerMensajes,
@@ -17,6 +18,7 @@ export function useConversaciones({ enabled = true } = {}) {
     queryKey: [...CLAVES.conversaciones, 'lista'],
     queryFn:  () => listarConversaciones(),
     enabled,
+    refetchInterval: useIntervaloRespaldo(),
   });
 }
 
@@ -30,6 +32,8 @@ export function useMensajes(conversacionId) {
     getNextPageParam: (ultima) => (ultima.page * ultima.pageSize < ultima.total ? ultima.page + 1 : undefined),
     enabled: Boolean(conversacionId),
     retry: (intentos, error) => ![400, 404].includes(error?.status) && intentos < 2,
+    // Sin tiempo real, los mensajes nuevos se traen cada 15 s
+    refetchInterval: useIntervaloRespaldo(),
   });
 }
 
@@ -73,6 +77,7 @@ export function useNotificaciones({ enabled = true } = {}) {
     queryKey: CLAVES.notificaciones,
     queryFn:  () => listarNotificaciones({ pageSize: 8 }),
     enabled,
+    refetchInterval: useIntervaloRespaldo(),
   });
 }
 
