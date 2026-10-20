@@ -252,6 +252,7 @@ homescope-api/
 - **Versionado:** todas las rutas bajo `/api/v1`.
 - **Formato:** JSON; nombres de campos en `camelCase` en la API y en `snake_case` en la base de datos (Prisma hace el mapeo con `@map`).
 - **Paginación:** `?page=1&pageSize=20`; la respuesta incluye `total`, `page` y `pageSize`. Ningún listado devuelve registros sin paginar (RNF-02).
+- **Búsqueda y filtros:** son parámetros de consulta del recurso que se filtra, no rutas propias. Por ejemplo, la búsqueda de propiedades es `GET /propiedades?q=casa&modalidad=venta&indice_min=70`; sin parámetros, el mismo endpoint devuelve el catálogo completo.
 - **Errores:** formato único `{ "error": { "code": "PROPIEDAD_NO_ENCONTRADA", "message": "...", "details": [...] } }` con el código HTTP correspondiente (400, 401, 403, 404, 409, 422, 429, 500).
 - **Documentación:** `docs/openapi.yaml` servido en `/api/docs` con Swagger UI (RNF-11, HU-31).
 - **Salud:** `GET /health` responde el estado de la API y de la conexión a la base de datos.
@@ -267,7 +268,7 @@ El modelo de datos (27 tablas en 5 módulos) se mantiene igual en entidades y re
 | Capacidad de PostgreSQL | Requerimiento que simplifica |
 | --- | --- |
 | Índices únicos parciales (`WHERE es_portada`) | Una sola foto de portada y un solo índice vigente por propiedad |
-| Búsqueda de texto completo con configuración `spanish` y extensión `unaccent` | Búsqueda por texto en título, descripción y dirección sin distinguir tildes (RF-18) |
+| Búsqueda de texto completo con configuración `spanish` y extensión `unaccent` | Búsqueda por texto en título, descripción, dirección, zona, municipio y departamento sin distinguir tildes (RF-18) |
 | Tipo `JSONB` con índice GIN | Criterios de búsquedas guardadas (RF-28) |
 | Extensión `citext` | Correo único sin distinguir mayúsculas |
 | `TIMESTAMPTZ` | Fechas guardadas en UTC y convertidas a la zona `America/Guatemala` |
@@ -317,8 +318,13 @@ CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text
   LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
   AS $$ SELECT public.unaccent('public.unaccent', $1) $$;
 
+-- Incluye zona, municipio y departamento para que "Antigua" o "zona 10" encuentren propiedades
+-- aunque su dirección escrita no los mencione
 CREATE INDEX ix_propiedad_texto ON propiedad USING GIN (
-  to_tsvector('spanish', f_unaccent(titulo || ' ' || coalesce(descripcion, '') || ' ' || coalesce(direccion, '')))
+  to_tsvector('spanish', f_unaccent(
+    titulo || ' ' || coalesce(descripcion, '') || ' ' || coalesce(direccion, '') || ' ' ||
+    coalesce(zona, '') || ' ' || coalesce(municipio, '') || ' ' || coalesce(departamento, '')
+  ))
 );
 ```
 
