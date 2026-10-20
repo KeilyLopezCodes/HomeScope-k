@@ -39,11 +39,50 @@ export const editarPropiedadSchema = z.object(
   message: 'Debes enviar al menos un campo para actualizar',
 });
 
-// Query del catálogo público: ?page=1&pageSize=20 (RNF-02)
+// ── Catálogo: GET /propiedades con búsqueda por texto y filtros combinables ──
+
+// Mismos valores que tipo_propiedad (migración del módulo de propiedades)
+export const TIPOS_PROPIEDAD = ['casa', 'apartamento', 'terreno', 'local', 'oficina'];
+export const ORDENES = ['relevancia', 'recientes', 'precio_asc', 'precio_desc', 'indice_desc'];
+
+// Los formularios y Swagger mandan "" cuando un campo queda vacío: se trata como no enviado
+const opcional = (schema) => z.preprocess((v) => (v === '' || v === null ? undefined : v), schema.optional());
+
+// Sin parámetros es el catálogo completo; con ellos, la búsqueda (RF-18, HU-20). Siempre paginado (RNF-02)
 export const listarPropiedadesSchema = z.object({
-  page:     z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
-});
+  // Texto libre: título, descripción, dirección, zona, municipio y departamento, sin distinguir tildes
+  q:                opcional(z.string().trim().min(2, 'Escribe al menos 2 caracteres').max(100)),
+  modalidad:        opcional(z.enum(MODALIDADES)),
+  // ?tipo=casa  o  ?tipo=casa,apartamento
+  tipo:             opcional(z.string()
+    .transform((v) => [...new Set(v.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))])
+    .refine((lista) => lista.length && lista.every((t) => TIPOS_PROPIEDAD.includes(t)), {
+      message: `Tipos válidos: ${TIPOS_PROPIEDAD.join(', ')}`,
+    })),
+  precio_min:       opcional(z.coerce.number().min(0)),
+  precio_max:       opcional(z.coerce.number().min(0)),
+  // Moneda de los filtros de precio; solo se comparan propiedades publicadas en esa moneda
+  moneda:           opcional(z.enum(MONEDAS)),
+  habitaciones_min: opcional(z.coerce.number().int().min(0).max(20)),
+  // Puntaje mínimo del Índice de Conveniencia vigente (excluye las propiedades sin índice)
+  indice_min:       opcional(z.coerce.number().min(0).max(100)),
+  orden:            opcional(z.enum(ORDENES)),
+  page:             z.coerce.number().int().min(1).default(1),
+  pageSize:         z.coerce.number().int().min(1).max(50).default(20),
+})
+  .refine((f) => f.precio_min == null || f.precio_max == null || f.precio_min <= f.precio_max, {
+    message: 'precio_min no puede ser mayor que precio_max', path: ['precio_min'],
+  })
+  .refine((f) => f.orden !== 'relevancia' || f.q, {
+    message: 'El orden por relevancia necesita un texto de búsqueda (q)', path: ['orden'],
+  })
+  .transform((f) => ({
+    ...f,
+    // Con texto se ordena por relevancia; sin texto, las más recientes primero
+    orden: f.orden ?? (f.q ? 'relevancia' : 'recientes'),
+    // Los filtros de precio se aplican en quetzales salvo que se pida otra moneda
+    moneda: f.moneda ?? (f.precio_min != null || f.precio_max != null ? 'GTQ' : undefined),
+  }));
 
 // ── Fotos ──────────────────────────────────────────────────────────────────
 

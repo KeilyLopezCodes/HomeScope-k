@@ -47,16 +47,31 @@ export class PropiedadesService {
 
   // ── Lectura ────────────────────────────────────────────────────────────────
 
-  async listar({ page, pageSize }) {
-    const { items, total } = await repo.listar({ page, pageSize });
-    const indices = await geoIndiceRepo.indicesVigentes(items.map((p) => p.id));
+  // GET /propiedades: catálogo de publicadas; con `q` y filtros es la búsqueda combinada
+  async listar(filtros) {
+    const { ids, total } = await repo.buscarIds(filtros);
+    const { page, pageSize, ...aplicados } = filtros;
     return {
-      // Sin índice vigente → null: el semáforo de la tarjeta muestra "en cálculo"
-      data: items.map((p) => ({ ...p, indice_conveniencia: formatearIndice(indices.get(p.id)) })),
+      // Sin índice vigente → indice_conveniencia null: el semáforo de la tarjeta muestra "en cálculo"
+      data: await this.resumenesPorIds(ids),
       total,
       page,
       pageSize,
+      // Filtros que se aplicaron de verdad (incluye los valores por defecto de orden y moneda)
+      filtros: Object.fromEntries(Object.entries(aplicados).filter(([, v]) => v !== undefined)),
     };
+  }
+
+  // Tarjetas con su índice para una lista de ids, en el mismo orden (resultados de búsqueda)
+  async resumenesPorIds(ids) {
+    const [items, indices] = await Promise.all([
+      repo.listarPorIds(ids),
+      geoIndiceRepo.indicesVigentes(ids),
+    ]);
+    const porId = new Map(items.map((p) => [p.id, p]));
+    return ids
+      .filter((id) => porId.has(id))
+      .map((id) => ({ ...porId.get(id), indice_conveniencia: formatearIndice(indices.get(id)) }));
   }
 
   // solicitante: { id, roles } del token (o null si es un visitante)

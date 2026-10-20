@@ -18,15 +18,31 @@ const router = Router();
  * /propiedades:
  *   get:
  *     tags: [Propiedades]
- *     summary: Listar propiedades publicadas (paginado)
- *     description: Catálogo público, solo propiedades en estado publicado. No incluye email ni teléfono del vendedor.
+ *     summary: Catálogo de propiedades publicadas, con búsqueda por texto y filtros
+ *     description: |
+ *       Sin parámetros devuelve el catálogo completo de propiedades publicadas, de la más reciente a la más antigua.
+ *       Con parámetros filtra esa misma colección: todos son opcionales y se combinan (se deben cumplir todos).
+ *       Siempre paginado (RNF-02). No incluye email ni teléfono del vendedor.
+ *
+ *       - `q` busca en título, descripción, dirección, zona, municipio y departamento con texto completo
+ *         en español: no distingue tildes ni mayúsculas y encuentra plurales y variaciones ("casas" encuentra "casa").
+ *         Admite frases entre comillas y excluir palabras con `-` (por ejemplo `casa -terreno`).
+ *       - Los filtros de precio se comparan en la moneda indicada (`GTQ` si no se indica) y solo
+ *         incluyen propiedades publicadas en esa moneda.
+ *       - `indice_min` excluye las propiedades que aún no tienen índice calculado.
+ *       - Sin `orden`: por relevancia si hay `q`, si no las más recientes.
  *     parameters:
- *       - in: query
- *         name: page
- *         schema: { type: integer, default: 1, minimum: 1 }
- *       - in: query
- *         name: pageSize
- *         schema: { type: integer, default: 20, minimum: 1, maximum: 50 }
+ *       - { in: query, name: q, description: "Texto a buscar (2 a 100 caracteres)", schema: { type: string, example: "casa jardin" } }
+ *       - { in: query, name: modalidad, schema: { type: string, enum: [venta, alquiler] } }
+ *       - { in: query, name: tipo, description: "Uno o varios separados por coma", schema: { type: string, example: "casa,apartamento" } }
+ *       - { in: query, name: precio_min, schema: { type: number, minimum: 0, example: 100000 } }
+ *       - { in: query, name: precio_max, schema: { type: number, minimum: 0, example: 600000 } }
+ *       - { in: query, name: moneda, description: "Moneda de los filtros de precio (por defecto GTQ)", schema: { type: string, enum: [GTQ, USD] } }
+ *       - { in: query, name: habitaciones_min, schema: { type: integer, minimum: 0, maximum: 20, example: 2 } }
+ *       - { in: query, name: indice_min, description: "Puntaje mínimo del Índice de Conveniencia (0–100)", schema: { type: number, minimum: 0, maximum: 100, example: 70 } }
+ *       - { in: query, name: orden, schema: { type: string, enum: [relevancia, recientes, precio_asc, precio_desc, indice_desc] } }
+ *       - { in: query, name: page, schema: { type: integer, default: 1, minimum: 1 } }
+ *       - { in: query, name: pageSize, schema: { type: integer, default: 20, minimum: 1, maximum: 50 } }
  *     responses:
  *       200:
  *         description: Página de propiedades publicadas.
@@ -63,11 +79,15 @@ const router = Router();
  *                           nivel:             { type: string, enum: [verde, amarillo, rojo] }
  *                           version_algoritmo: { type: string, example: v1.0 }
  *                           fecha_calculo:     { type: string, format: date-time }
- *                 total:    { type: integer }
+ *                 total:    { type: integer, description: Propiedades que cumplen el texto y los filtros }
  *                 page:     { type: integer }
  *                 pageSize: { type: integer }
+ *                 filtros:
+ *                   type: object
+ *                   description: Filtros aplicados, con los valores por defecto de `orden` y `moneda`
+ *                   example: { q: "casa", modalidad: venta, indice_min: 70, orden: relevancia }
  *       422:
- *         description: Parámetros de paginación inválidos.
+ *         description: Algún parámetro es inválido (por ejemplo, un tipo inexistente o precio_min mayor que precio_max).
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }

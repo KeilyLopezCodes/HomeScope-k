@@ -1,13 +1,27 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma.js';
 
 const VENDEDOR_PUBLICO = { id: true, nombre: true };
 
 const FOTO_SELECT = { id: true, url: true, public_id: true, orden: true, es_portada: true, tamano_bytes: true };
 
+// Debe ser la misma expresión del índice GIN ix_propiedad_texto (migración 20261018120000_busqueda_texto)
+// para que PostgreSQL lo use. Es SQL fijo, sin datos del usuario.
+const VECTOR_TEXTO = Prisma.raw(`to_tsvector('spanish', f_unaccent(
+  p.titulo || ' ' || coalesce(p.descripcion, '') || ' ' || coalesce(p.direccion, '') || ' ' ||
+  coalesce(p.zona, '') || ' ' || coalesce(p.municipio, '') || ' ' || coalesce(p.departamento, '')
+))`);
+
+const DESDE_CATALOGO = Prisma.sql`
+  FROM propiedad p
+  JOIN tipo_propiedad tp ON tp.id = p.tipo_propiedad_id
+  LEFT JOIN indice_conveniencia ic ON ic.propiedad_id = p.id AND ic.es_vigente`;
+
 const PROPIEDAD_LISTA = {
   id: true, titulo: true, direccion: true, precio: true, moneda: true,
   modalidad: true, estado: true, fecha_creacion: true,
   zona: true, municipio: true, departamento: true,
+  habitaciones: true, banos: true, area_m2: true, fecha_publicacion: true,
   tipo_propiedad: { select: { nombre: true } },
   vendedor:       { select: VENDEDOR_PUBLICO },
   fotos: {
@@ -20,20 +34,51 @@ const PROPIEDAD_LISTA = {
 export class PropiedadesRepository {
   // ── Lectura ────────────────────────────────────────────────────────────────
 
-  // Devuelve la página pedida y el total de publicadas, en una sola transacción
-  async listar({ page = 1, pageSize = 20 } = {}) {
-    const where = { estado: 'publicado' };
-    const [items, total] = await prisma.$transaction([
-      prisma.propiedad.findMany({
-        where,
-        skip:    (page - 1) * pageSize,
-        take:    pageSize,
-        orderBy: [{ fecha_publicacion: 'desc' }, { id: 'desc' }],
-        select:  PROPIEDAD_LISTA,
-      }),
-      prisma.propiedad.count({ where }),
+  // Catálogo: ids de la página pedida y total de publicadas que cumplen el texto y los filtros.
+  // Todos los valores del usuario van como parámetros de la consulta ($queryRaw con Prisma.sql),
+  // nunca concatenados al SQL.
+  async buscarIds(f) {
+    // websearch_to_tsquery acepta cualquier texto sin errores de sintaxis ("casa jardín", "-terreno", "zona 10")
+    const consulta = f.q ? Prisma.sql`websearch_to_tsquery('spanish', f_unaccent(${f.q}))` : null;
+
+    const condiciones = [Prisma.sql`p.estado = 'publicado'`];
+    if (consulta)                   condiciones.push(Prisma.sql`${VECTOR_TEXTO} @@ ${consulta}`);
+    if (f.modalidad)                condiciones.push(Prisma.sql`p.modalidad = ${f.modalidad}`);
+    if (f.tipo)                     condiciones.push(Prisma.sql`tp.nombre = ANY(${f.tipo})`);
+    if (f.moneda)                   condiciones.push(Prisma.sql`p.moneda = ${f.moneda}`);
+    if (f.precio_min != null)       condiciones.push(Prisma.sql`p.precio >= ${f.precio_min}`);
+    if (f.precio_max != null)       condiciones.push(Prisma.sql`p.precio <= ${f.precio_max}`);
+    if (f.habitaciones_min != null) condiciones.push(Prisma.sql`p.habitaciones >= ${f.habitaciones_min}`);
+    if (f.indice_min != null)       condiciones.push(Prisma.sql`ic.puntaje_total >= ${f.indice_min}`);
+    const donde = Prisma.join(condiciones, ' AND ');
+
+    const ORDEN = {
+      relevancia:  consulta && Prisma.sql`ts_rank(${VECTOR_TEXTO}, ${consulta}) DESC, p.fecha_publicacion DESC`,
+      recientes:   Prisma.sql`p.fecha_publicacion DESC NULLS LAST`,
+      precio_asc:  Prisma.sql`p.precio ASC`,
+      precio_desc: Prisma.sql`p.precio DESC`,
+      indice_desc: Prisma.sql`ic.puntaje_total DESC NULLS LAST`,
+    };
+
+    const [filas, [{ total }]] = await Promise.all([
+      prisma.$queryRaw`
+        SELECT p.id ${DESDE_CATALOGO}
+        WHERE ${donde}
+        ORDER BY ${ORDEN[f.orden]}, p.id DESC
+        LIMIT ${f.pageSize} OFFSET ${(f.page - 1) * f.pageSize}`,
+      prisma.$queryRaw`SELECT count(*)::int AS total ${DESDE_CATALOGO} WHERE ${donde}`,
     ]);
-    return { items, total };
+
+    return { ids: filas.map((r) => r.id), total };
+  }
+
+  // Tarjetas de varias propiedades publicadas (el orden lo decide quien llama)
+  async listarPorIds(ids) {
+    if (!ids.length) return [];
+    return prisma.propiedad.findMany({
+      where:  { id: { in: ids }, estado: 'publicado' },
+      select: PROPIEDAD_LISTA,
+    });
   }
 
   async buscarPorId(id) {
