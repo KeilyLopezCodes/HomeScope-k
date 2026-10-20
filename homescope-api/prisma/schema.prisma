@@ -119,6 +119,8 @@ model Propiedad {
   indices            IndiceConveniencia[]
 
   @@index([vendedor_id])
+  @@index([estado, tipo_propiedad_id, modalidad, precio])
+  // Índice GIN de texto completo (ix_propiedad_texto): solo en la migración 20261018120000_busqueda_texto
   @@map("propiedad")
 }
 
