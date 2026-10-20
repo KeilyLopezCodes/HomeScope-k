@@ -63,6 +63,8 @@ model Usuario {
   notificaciones           Notificacion[]
   disponibilidad           DisponibilidadVendedor[]
   visitas_solicitadas      Visita[]
+  resenas_recibidas        Resena[]  @relation("ResenaVendedor")
+  resenas_escritas         Resena[]  @relation("ResenaComprador")
 
   @@map("usuario")
 }
@@ -123,6 +125,7 @@ model Propiedad {
   indices            IndiceConveniencia[]
   disponibilidad     DisponibilidadVendedor[]
   visitas            Visita[]
+  resenas            Resena[]
 
   @@index([vendedor_id])
   @@index([estado, tipo_propiedad_id, modalidad, precio])
@@ -355,4 +358,23 @@ model Visita {
   @@index([propiedad_id, estado])
   @@index([comprador_id])
   @@map("visita")
+}
+
+// ─── Reputación: reseñas de vendedores (una por comprador y propiedad, calificación 1–5) ───
+
+model Resena {
+  id             Int       @id @default(autoincrement())
+  vendedor_id    Int
+  comprador_id   Int
+  propiedad_id   Int
+  calificacion   Int       @db.SmallInt
+  comentario     String?   @db.VarChar(1000)
+  fecha_creacion DateTime  @default(now()) @db.Timestamptz
+  vendedor       Usuario   @relation("ResenaVendedor", fields: [vendedor_id], references: [id], onDelete: Cascade)
+  comprador      Usuario   @relation("ResenaComprador", fields: [comprador_id], references: [id], onDelete: Cascade)
+  propiedad      Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@unique([comprador_id, propiedad_id], map: "ux_resena")
+  @@index([vendedor_id, fecha_creacion])
+  @@map("resena")
 }
