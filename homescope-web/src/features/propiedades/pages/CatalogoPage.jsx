@@ -1,48 +1,70 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Building2, AlertCircle } from 'lucide-react';
+import { Building2, AlertCircle, SearchX } from 'lucide-react';
 import PropiedadCard from '../components/PropiedadCard';
 import { useCatalogoPropiedades } from '../hooks/useCatalogoPropiedades';
 import { Button, EmptyState, Pagination, Spinner } from '../../../shared/components/ui';
+import { BarraBusqueda, FiltrosActivos, ORDENES, PanelFiltros, useFiltrosCatalogo } from '../../busqueda';
 
 const PAGE_SIZE = 12;
 
 export default function CatalogoPage() {
-  // La página vive en la URL (?page=2) para poder compartirla y que funcione el botón Atrás
-  const [searchParams, setSearchParams] = useSearchParams();
-  const page = Math.max(1, parseInt(searchParams.get('page')) || 1);
+  // Búsqueda, filtros y página viven en la URL: se pueden compartir y funciona el botón Atrás
+  const { filtros, page, hayFiltros, actualizar, quitar, limpiar, irAPagina } = useFiltrosCatalogo();
 
-  const { data, isPending, isError, error, refetch, isPlaceholderData } =
-    useCatalogoPropiedades({ page, pageSize: PAGE_SIZE });
+  const { data, isPending, isError, error, refetch, isPlaceholderData, isFetching } =
+    useCatalogoPropiedades({ page, pageSize: PAGE_SIZE, filtros });
 
   const propiedades = data?.data ?? [];
   const total       = data?.total ?? 0;
   const totalPages  = Math.ceil(total / PAGE_SIZE);
+  // El orden que aplicó el backend (por defecto: relevancia con texto, recientes sin texto)
+  const orden       = data?.filtros?.orden ?? filtros.orden ?? (filtros.q ? 'relevancia' : 'recientes');
 
-  // Si la página pedida ya no existe (p. ej. se despublicaron propiedades), ir a la última
+  // Si la página pedida ya no existe con estos resultados, ir a la última (sin perder los filtros)
   useEffect(() => {
-    if (data && totalPages > 0 && page > totalPages) {
-      setSearchParams({ page: String(totalPages) }, { replace: true });
-    }
-  }, [data, page, totalPages, setSearchParams]);
+    if (!data || isPlaceholderData) return;
+    if (totalPages > 0 && page > totalPages) irAPagina(totalPages, { replace: true });
+    if (totalPages === 0 && page > 1) irAPagina(1, { replace: true });
+  }, [data, isPlaceholderData, page, totalPages]);
 
   function cambiarPagina(nueva) {
-    setSearchParams(nueva === 1 ? {} : { page: String(nueva) });
+    irAPagina(nueva);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-secondary-900">Propiedades</h1>
-          <p className="text-sm text-secondary-500">Explora la oferta disponible en venta y alquiler</p>
-        </div>
-        {total > 0 && (
-          <p className="text-sm text-secondary-500">
-            {total} {total === 1 ? 'propiedad publicada' : 'propiedades publicadas'}
-          </p>
-        )}
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-secondary-900">Propiedades</h1>
+        <p className="text-sm text-secondary-500">Explora la oferta disponible en venta y alquiler</p>
+      </div>
+
+      <div className="mb-6 space-y-4">
+        <BarraBusqueda valor={filtros.q ?? ''} onBuscar={(q) => actualizar({ q })} />
+        <PanelFiltros filtros={filtros} onCambiar={actualizar} />
+        <FiltrosActivos filtros={filtros} onQuitar={quitar} onLimpiar={limpiar} />
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-secondary-600" aria-live="polite">
+          {isPending ? 'Buscando…' : hayFiltros
+            ? `${total} ${total === 1 ? 'resultado' : 'resultados'}`
+            : `${total} ${total === 1 ? 'propiedad publicada' : 'propiedades publicadas'}`}
+          {isFetching && !isPending && <span className="ml-2 text-secondary-400">Actualizando…</span>}
+        </p>
+        <label className="flex items-center gap-2 text-sm text-secondary-600">
+          Ordenar por
+          <select
+            id="catalogo-orden"
+            value={orden}
+            onChange={(e) => actualizar({ orden: e.target.value })}
+            className="rounded border border-secondary-300 bg-white px-2 py-1.5 text-sm text-secondary-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            {ORDENES.filter((o) => !o.requiereTexto || filtros.q).map((o) => (
+              <option key={o.valor} value={o.valor}>{o.etiqueta}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {isPending ? (
@@ -53,6 +75,13 @@ export default function CatalogoPage() {
           title="No se pudo cargar el catálogo"
           description={error?.message ?? 'Intenta de nuevo en unos momentos.'}
           action={<Button variant="secondary" onClick={() => refetch()}>Reintentar</Button>}
+        />
+      ) : propiedades.length === 0 && hayFiltros ? (
+        <EmptyState
+          icon={SearchX}
+          title="No hay propiedades con estos filtros"
+          description="Prueba quitar un filtro o buscar con otras palabras."
+          action={<Button variant="secondary" onClick={limpiar}>Limpiar filtros</Button>}
         />
       ) : propiedades.length === 0 ? (
         <EmptyState

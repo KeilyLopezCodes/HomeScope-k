@@ -4,6 +4,15 @@ import { Badge } from '../../../shared/components/ui';
 import { Semaforo } from '../../indice';
 import { MODALIDAD, formatearPrecio, ubicacionResumida } from '../utils/formato';
 
+// "3 hab · 2 baños · 180 m²", solo con los datos que tenga la propiedad
+function caracteristicas({ habitaciones, banos, area_m2 }) {
+  return [
+    habitaciones != null && `${habitaciones} hab`,
+    banos != null && `${Number(banos)} ${Number(banos) === 1 ? 'baño' : 'baños'}`,
+    area_m2 != null && `${Number(area_m2).toLocaleString('es-GT')} m²`,
+  ].filter(Boolean);
+}
+
 export default function PropiedadCard({ propiedad }) {
   const portada   = propiedad.fotos?.[0]?.url;
   const modalidad = MODALIDAD[propiedad.modalidad];
@@ -44,7 +53,10 @@ export default function PropiedadCard({ propiedad }) {
           )}
         </p>
         <h3 className="line-clamp-1 text-sm font-medium text-secondary-800">{propiedad.titulo}</h3>
-        <p className="text-xs capitalize text-secondary-500">{propiedad.tipo_propiedad?.nombre}</p>
+        <p className="text-xs text-secondary-500">
+          <span className="capitalize">{propiedad.tipo_propiedad?.nombre}</span>
+          {caracteristicas(propiedad).map((c) => <span key={c}> · {c}</span>)}
+        </p>
         <p className="flex items-start gap-1 text-xs text-secondary-600">
           <MapPin size={14} className="mt-px shrink-0" aria-hidden="true" />
           <span className="line-clamp-1">{ubicacionResumida(propiedad)}</span>
