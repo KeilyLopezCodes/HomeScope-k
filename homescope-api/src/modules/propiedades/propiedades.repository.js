@@ -90,7 +90,7 @@ export class PropiedadesRepository {
         habitaciones: true, banos: true, area_m2: true, parqueos: true,
         zona: true, municipio: true, departamento: true,
         latitud: true, longitud: true, paso_formulario: true,
-        fecha_publicacion: true, fecha_creacion: true, fecha_actualizacion: true,
+        fecha_publicacion: true, fecha_expiracion: true, fecha_creacion: true, fecha_actualizacion: true,
         tipo_propiedad: { select: { id: true, nombre: true } },
         vendedor: {
           select: { id: true, nombre: true, apellido: true, foto_url: true, email: true, telefono: true },
@@ -121,21 +121,32 @@ export class PropiedadesRepository {
     return prisma.propiedad.count({ where: { vendedor_id: vendedorId, estado: 'publicado' } });
   }
 
-  async listarPorVendedor(vendedorId) {
-    return prisma.propiedad.findMany({
-      where:   { vendedor_id: vendedorId },
-      orderBy: { fecha_creacion: 'desc' },
-      select:  {
-        id: true, titulo: true, direccion: true, precio: true, moneda: true,
-        modalidad: true, estado: true, paso_formulario: true, fecha_creacion: true,
-        tipo_propiedad: { select: { nombre: true } },
-        fotos: {
-          where:  { es_portada: true },
-          select: { url: true },
-          take:   1,
+  // "Mis propiedades": página de las propiedades del vendedor en cualquier estado (estados: null = todas)
+  // y cuántas tiene en cada estado, para las pestañas
+  async listarPorVendedor(vendedorId, { estados = null, page = 1, pageSize = 10 } = {}) {
+    const where = { vendedor_id: vendedorId, ...(estados && { estado: { in: estados } }) };
+    const [items, total, porEstado] = await prisma.$transaction([
+      prisma.propiedad.findMany({
+        where,
+        orderBy: [{ fecha_actualizacion: 'desc' }, { id: 'desc' }],
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+        select:  {
+          id: true, titulo: true, direccion: true, municipio: true, precio: true, moneda: true,
+          modalidad: true, estado: true, paso_formulario: true,
+          fecha_creacion: true, fecha_publicacion: true, fecha_expiracion: true, fecha_actualizacion: true,
+          tipo_propiedad: { select: { nombre: true } },
+          fotos: {
+            where:  { es_portada: true },
+            select: { url: true },
+            take:   1,
+          },
         },
-      },
-    });
+      }),
+      prisma.propiedad.count({ where }),
+      prisma.propiedad.groupBy({ by: ['estado'], where: { vendedor_id: vendedorId }, _count: true, orderBy: { estado: 'asc' } }),
+    ]);
+    return { items, total, porEstado: Object.fromEntries(porEstado.map((g) => [g.estado, g._count])) };
   }
 
   async listarVistas(usuarioId, limit = 20) {
@@ -185,15 +196,24 @@ export class PropiedadesRepository {
     return prisma.propiedad.delete({ where: { id } });
   }
 
-  // Cambia estado y registra fecha_publicacion si pasa a 'publicado'
-  async cambiarEstado(id, nuevoEstado) {
+  // Cambia el estado; al publicar registra fecha_publicacion y, si se indica, la nueva fecha_expiracion
+  async cambiarEstado(id, nuevoEstado, { fechaExpiracion } = {}) {
     return prisma.propiedad.update({
       where: { id },
       data:  {
         estado: nuevoEstado,
         ...(nuevoEstado === 'publicado' && { fecha_publicacion: new Date() }),
+        ...(fechaExpiracion && { fecha_expiracion: fechaExpiracion }),
       },
-      select: { id: true, estado: true },
+      select: { id: true, estado: true, fecha_publicacion: true, fecha_expiracion: true },
+    });
+  }
+
+  async renovar(id, fechaExpiracion) {
+    return prisma.propiedad.update({
+      where:  { id },
+      data:   { fecha_expiracion: fechaExpiracion },
+      select: { id: true, estado: true, fecha_publicacion: true, fecha_expiracion: true },
     });
   }
 

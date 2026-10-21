@@ -99,27 +99,50 @@ router.get('/', optionalAuth, controller.listar);
  * /propiedades/mias:
  *   get:
  *     tags: [Propiedades]
- *     summary: Historial — propiedades publicadas por el vendedor autenticado
+ *     summary: Mis propiedades — todas las del vendedor autenticado, en cualquier estado
+ *     description: |
+ *       Paginado, de la modificada más recientemente a la más antigua. `estado` elige la pestaña
+ *       (`cerrada` = vendidas o alquiladas) y `conteos` trae cuántas hay en cada una.
+ *       Para las publicadas indica la vigencia: `dias_para_expirar`, `por_expirar` (7 días o menos: se puede
+ *       renovar con `POST /propiedades/{id}/renovar`) y `expirada`.
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - { in: query, name: estado, schema: { type: string, enum: [todas, borrador, publicado, pausado, cerrada], default: todas } }
+ *       - { in: query, name: page, schema: { type: integer, default: 1 } }
+ *       - { in: query, name: pageSize, schema: { type: integer, default: 10, maximum: 50 } }
  *     responses:
  *       200:
- *         description: Lista de propiedades del vendedor.
+ *         description: Página de propiedades del vendedor.
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:             { type: integer }
- *                   titulo:         { type: string }
- *                   direccion:      { type: string }
- *                   precio:         { type: number }
- *                   moneda:         { type: string, example: GTQ }
- *                   modalidad:      { type: string, example: venta }
- *                   estado:         { type: string, example: publicado }
- *                   fecha_creacion: { type: string, format: date-time }
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:                { type: integer }
+ *                       titulo:            { type: string }
+ *                       precio:            { type: string }
+ *                       moneda:            { type: string, example: GTQ }
+ *                       modalidad:         { type: string, example: venta }
+ *                       estado:            { type: string, enum: [borrador, publicado, pausado, vendido, alquilado] }
+ *                       paso_formulario:   { type: integer, description: "Paso donde quedó un borrador (1–4)" }
+ *                       portada:           { type: string, nullable: true }
+ *                       fecha_publicacion: { type: string, format: date-time, nullable: true }
+ *                       fecha_expiracion:  { type: string, format: date-time, nullable: true }
+ *                       dias_para_expirar: { type: integer, nullable: true }
+ *                       por_expirar:       { type: boolean }
+ *                       expirada:          { type: boolean }
+ *                 total:    { type: integer }
+ *                 page:     { type: integer }
+ *                 pageSize: { type: integer }
+ *                 conteos:
+ *                   type: object
+ *                   example: { todas: 37, borrador: 3, publicado: 30, pausado: 2, cerrada: 2 }
  *       401:
  *         description: Token requerido.
  *         content:
@@ -530,7 +553,8 @@ router.delete('/:id', authenticate, controller.eliminar);
  *     tags: [Propiedades]
  *     summary: Publicar propiedad (borrador → publicado)
  *     description: |
- *       Transición de estado `borrador` a `publicado`. Solo el dueño.
+ *       Transición de estado `borrador` a `publicado`. Solo el dueño, con el correo verificado
+ *       (si no, 403 `CORREO_NO_VERIFICADO`). El anuncio queda vigente 60 días.
  *       Encola el cálculo del Índice de Conveniencia, que se guarda en segundo plano (ADR-08).
  *     security:
  *       - bearerAuth: []
@@ -564,6 +588,26 @@ router.post('/:id/publicar', authenticate, requirePermission('propiedad.crear'),
 
 /**
  * @openapi
+ * /propiedades/{id}/renovar:
+ *   post:
+ *     tags: [Propiedades]
+ *     summary: Renovar un anuncio por expirar (solo el dueño)
+ *     description: |
+ *       Los anuncios publicados vencen 60 días después de publicarse o renovarse. Cuando faltan 7 días o menos
+ *       (o ya venció), renovar le da 60 días más desde hoy.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: "Nueva vigencia: { id, estado, fecha_expiracion, dias_para_expirar, por_expirar }" }
+ *       403: { description: No eres el dueño. }
+ *       422: { description: "No está publicada (ESTADO_INVALIDO) o aún faltan más de 7 días (AUN_VIGENTE)." }
+ */
+router.post('/:id/renovar', authenticate, controller.renovar);
+
+/**
+ * @openapi
  * /propiedades/{id}/estado:
  *   patch:
  *     tags: [Propiedades]
@@ -574,6 +618,9 @@ router.post('/:id/publicar', authenticate, requirePermission('propiedad.crear'),
  *       - `publicado` → `pausado`, `vendido`, `alquilado`
  *       - `pausado` → `publicado`, `vendido`, `alquilado`
  *       - `vendido` y `alquilado` son estados finales (sin transición posible).
+ *
+ *       Reactivar (`pausado` → `publicado`) aplica la misma política que publicar: con el correo sin verificar
+ *       responde 403 `CORREO_NO_VERIFICADO`. Si el anuncio había vencido, empieza una vigencia nueva de 60 días.
  *     security:
  *       - bearerAuth: []
  *     parameters:

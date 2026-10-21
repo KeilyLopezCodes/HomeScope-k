@@ -4,7 +4,8 @@ import { ComunicacionRepository } from '../comunicacion/comunicacion.repository.
 import { FavoritosRepository } from '../favoritos/favoritos.repository.js';
 import { GeoIndiceRepository } from '../geo-indice/geo-indice.repository.js';
 import { ReputacionRepository } from '../reputacion/reputacion.repository.js';
-import { TRANSICIONES, FOTOS_CONFIG } from './propiedades.schemas.js';
+import { TRANSICIONES, FOTOS_CONFIG, VIGENCIA_DIAS, DIAS_AVISO_EXPIRACION, PESTANAS_MIAS } from './propiedades.schemas.js';
+import { IdentidadRepository } from '../identidad/identidad.repository.js';
 import { storage } from '../../shared/adapters/storage/index.js';
 import { jobs } from '../../shared/adapters/jobs.adapter.js';
 import { CALCULAR_INDICE, OPCIONES_CALCULAR_INDICE } from '../../jobs/trabajos.js';
@@ -14,6 +15,17 @@ const comunicacionRepo = new ComunicacionRepository();
 const favoritosRepo    = new FavoritosRepository();
 const geoIndiceRepo    = new GeoIndiceRepository();
 const reputacionRepo   = new ReputacionRepository();
+const identidadRepo    = new IdentidadRepository();
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+const enDias = (dias, desde = new Date()) => new Date(desde.getTime() + dias * DIA_MS);
+
+// Días que le quedan al anuncio (negativo si ya venció) y si está en el periodo de aviso
+function vigencia(fechaExpiracion, ahora = new Date()) {
+  if (!fechaExpiracion) return { dias_para_expirar: null, por_expirar: false, expirada: false };
+  const dias = Math.ceil((new Date(fechaExpiracion).getTime() - ahora.getTime()) / DIA_MS);
+  return { dias_para_expirar: dias, por_expirar: dias <= DIAS_AVISO_EXPIRACION, expirada: dias <= 0 };
+}
 
 const ROLES_ADMIN = ['administrador', 'admin'];
 
@@ -192,8 +204,29 @@ export class PropiedadesService {
     };
   }
 
-  async listarMias(usuarioId) {
-    return repo.listarPorVendedor(usuarioId);
+  // GET /propiedades/mias: propiedades del vendedor en cualquier estado, por pestaña y paginadas
+  async listarMias(usuarioId, { estado, page, pageSize }) {
+    const { items, total, porEstado } = await repo.listarPorVendedor(usuarioId, { estados: PESTANAS_MIAS[estado], page, pageSize });
+    const n = (e) => porEstado[e] ?? 0;
+    return {
+      data: items.map(({ fotos, ...p }) => ({
+        ...p,
+        portada: fotos[0]?.url ?? null,
+        // La vigencia solo aplica a los anuncios publicados
+        ...(p.estado === 'publicado' ? vigencia(p.fecha_expiracion) : { dias_para_expirar: null, por_expirar: false, expirada: false }),
+      })),
+      total,
+      page,
+      pageSize,
+      estado,
+      conteos: {
+        todas:     Object.values(porEstado).reduce((s, c) => s + c, 0),
+        borrador:  n('borrador'),
+        publicado: n('publicado'),
+        pausado:   n('pausado'),
+        cerrada:   n('vendido') + n('alquilado'),
+      },
+    };
   }
 
   async listarVistas(usuarioId) {
@@ -332,7 +365,8 @@ export class PropiedadesService {
   async publicar(propiedadId, usuarioId) {
     const propiedad = await this._verificarDueno(propiedadId, usuarioId);
     this._validarTransicion(propiedad.estado, 'publicado');
-    const publicada = await repo.cambiarEstado(propiedadId, 'publicado');
+    await this._verificarPoliticaPublicacion(usuarioId);
+    const publicada = await repo.cambiarEstado(propiedadId, 'publicado', { fechaExpiracion: this._nuevaExpiracion(propiedad) });
     await this._encolarIndice(propiedadId);
     return publicada;
   }
@@ -341,12 +375,46 @@ export class PropiedadesService {
   async cambiarEstado(propiedadId, nuevoEstado, usuarioId) {
     const propiedad = await this._verificarDueno(propiedadId, usuarioId);
     this._validarTransicion(propiedad.estado, nuevoEstado);
-    const actualizada = await repo.cambiarEstado(propiedadId, nuevoEstado);
+    // Reactivar una pausada es volver a publicarla: aplica la misma política
+    if (nuevoEstado === 'publicado') await this._verificarPoliticaPublicacion(usuarioId);
+    const actualizada = await repo.cambiarEstado(propiedadId, nuevoEstado, {
+      fechaExpiracion: nuevoEstado === 'publicado' ? this._nuevaExpiracion(propiedad) : undefined,
+    });
     if (nuevoEstado === 'publicado') await this._encolarIndice(propiedadId);
     return actualizada;
   }
 
+  // POST /propiedades/:id/renovar: extiende la vigencia de un anuncio publicado que está por vencer
+  async renovar(propiedadId, usuarioId) {
+    const propiedad = await this._verificarDueno(propiedadId, usuarioId);
+    if (propiedad.estado !== 'publicado')
+      throw new AppError('ESTADO_INVALIDO', 'Solo se pueden renovar anuncios publicados', 422);
+    const { dias_para_expirar, por_expirar } = vigencia(propiedad.fecha_expiracion);
+    if (dias_para_expirar != null && !por_expirar)
+      throw new AppError('AUN_VIGENTE',
+        `El anuncio vence en ${dias_para_expirar} días. Podrás renovarlo cuando falten ${DIAS_AVISO_EXPIRACION} días o menos.`, 422);
+    const renovada = await repo.renovar(propiedadId, enDias(VIGENCIA_DIAS));
+    return { ...renovada, ...vigencia(renovada.fecha_expiracion) };
+  }
+
   // ── Helpers privados ───────────────────────────────────────────────────────
+
+  // Política de publicación (arquitectura §10.1): cuenta activa y correo verificado.
+  // TODO: exigir también vendedor verificado cuando exista verificacion_vendedor (RF-25)
+  async _verificarPoliticaPublicacion(usuarioId) {
+    const cuenta = await identidadRepo.estadoCuenta(usuarioId);
+    if (!cuenta || ['suspendido', 'inhabilitado'].includes(cuenta.estado))
+      throw new AppError('CUENTA_SUSPENDIDA', 'Tu cuenta está suspendida: no puedes publicar ni reactivar propiedades.', 403);
+    if (!cuenta.correo_verificado)
+      throw new AppError('CORREO_NO_VERIFICADO',
+        'Verifica tu correo electrónico para publicar o reactivar propiedades. Revisa el enlace que te enviamos al registrarte.', 403);
+  }
+
+  // Al publicar o reactivar: si no tenía vigencia o ya venció, empieza un periodo nuevo; si no, se conserva
+  _nuevaExpiracion(propiedad) {
+    const vigente = propiedad.fecha_expiracion && new Date(propiedad.fecha_expiracion) > new Date();
+    return vigente ? undefined : enDias(VIGENCIA_DIAS);
+  }
 
   // Encola el cálculo del índice. Si la cola falla no se interrumpe la operación del usuario:
   // la propiedad queda con el índice "en cálculo" y se puede recalcular con `npm run indice:recalcular`.

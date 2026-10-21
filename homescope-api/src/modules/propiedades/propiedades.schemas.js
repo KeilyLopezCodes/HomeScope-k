@@ -85,6 +85,26 @@ export const listarPropiedadesSchema = z.object({
     moneda: f.moneda ?? (f.precio_min != null || f.precio_max != null ? 'GTQ' : undefined),
   }));
 
+// ── Vigencia de los anuncios ───────────────────────────────────────────────
+export const VIGENCIA_DIAS = 60;          // un anuncio publicado vence 60 días después de publicarse o renovarse
+export const DIAS_AVISO_EXPIRACION = 7;   // desde 7 días antes se avisa y se puede renovar
+
+// GET /propiedades/mias: pestañas de "Mis propiedades" (cerradas = vendidas o alquiladas)
+export const PESTANAS_MIAS = {
+  todas:     null,
+  borrador:  ['borrador'],
+  publicado: ['publicado'],
+  pausado:   ['pausado'],
+  cerrada:   ['vendido', 'alquilado'],
+};
+export const listarMiasSchema = z.object({
+  estado:   z.enum(Object.keys(PESTANAS_MIAS), {
+    errorMap: () => ({ message: `estado debe ser uno de: ${Object.keys(PESTANAS_MIAS).join(', ')}` }),
+  }).default('todas'),
+  page:     z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(10),
+});
+
 // GET /propiedades/:id/historial-precios
 export const historialPreciosSchema = z.object({
   page:     z.coerce.number().int().min(1).default(1),

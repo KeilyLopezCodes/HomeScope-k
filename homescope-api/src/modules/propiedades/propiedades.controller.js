@@ -1,7 +1,7 @@
 import { PropiedadesService } from './propiedades.service.js';
 import {
   crearPropiedadSchema, editarPropiedadSchema, ESTADOS_VALIDOS,
-  subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema, historialPreciosSchema,
+  subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema, historialPreciosSchema, listarMiasSchema,
 } from './propiedades.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
@@ -57,7 +57,7 @@ export async function getHistorialPrecios(req, res, next) {
 
 export async function listarMias(req, res, next) {
   try {
-    res.json(await service.listarMias(req.user.sub));
+    res.json(await service.listarMias(req.user.sub, validar(listarMiasSchema, req.query)));
   } catch (err) { next(err); }
 }
 
@@ -251,6 +251,12 @@ export async function publicar(req, res, next) {
  *       422:
  *         description: Transición no permitida.
  */
+export async function renovar(req, res, next) {
+  try {
+    res.json(await service.renovar(parseId(req.params.id), req.user.sub));
+  } catch (err) { next(err); }
+}
+
 export async function cambiarEstado(req, res, next) {
   try {
     const id          = parseId(req.params.id);
