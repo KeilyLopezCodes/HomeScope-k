@@ -3,8 +3,10 @@ import { ImagePlus, X, Star, ChevronLeft, ChevronRight, GripVertical } from 'luc
 import { FOTOS_CONFIG, validarArchivo } from '../services/fotosService';
 
 // Valor del formulario:
-//   fotos       → [{ key, file, preview }] en el orden en que se mostrarán
-//   fotoPortada → key de la foto elegida como portada
+//   fotos           → [{ key, file, preview }] en el orden en que se mostrarán; las que ya están en el
+//                     servidor (borrador o edición) llegan como { key, id, preview: url } sin archivo
+//   fotoPortada     → key de la foto elegida como portada
+//   fotosEliminadas → ids de fotos del servidor que se quitaron (se borran al guardar)
 export default function StepFotos({ setValue, getValues, errors, register }) {
   const [fotos, setFotos]       = useState(() => getValues('fotos') ?? []);
   const [portada, setPortada]   = useState(() => getValues('fotoPortada') ?? null);
@@ -52,7 +54,8 @@ export default function StepFotos({ setValue, getValues, errors, register }) {
 
   function eliminar(key) {
     const foto = fotos.find((f) => f.key === key);
-    if (foto) URL.revokeObjectURL(foto.preview);
+    if (foto?.id) setValue('fotosEliminadas', [...(getValues('fotosEliminadas') ?? []), foto.id]);
+    else if (foto) URL.revokeObjectURL(foto.preview);
     actualizar(fotos.filter((f) => f.key !== key));
   }
 

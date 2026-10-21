@@ -15,3 +15,28 @@ export const obtenerPropiedad = (id) => apiClient(`/api/v1/propiedades/${id}`);
 // Historial de vistas del usuario autenticado (el backend ignora al dueño)
 export const registrarVista = (id, origen = 'catalogo') =>
   apiClient(`/api/v1/propiedades/${id}/vista`, { method: 'POST', body: JSON.stringify({ origen }) });
+
+// ── Mis propiedades (vendedor) ───────────────────────────────────────────────
+
+// estado: todas | borrador | publicado | pausado | cerrada → { data, total, page, pageSize, conteos }
+export const listarMisPropiedades = ({ estado = 'todas', page = 1, pageSize = 10 } = {}) =>
+  apiClient(`/api/v1/propiedades/mias?${new URLSearchParams({ estado, page, pageSize })}`);
+
+export const crearPropiedad = (campos) =>
+  apiClient('/api/v1/propiedades', { method: 'POST', body: JSON.stringify(campos) });
+
+export const actualizarPropiedad = (id, campos) =>
+  apiClient(`/api/v1/propiedades/${id}`, { method: 'PUT', body: JSON.stringify(campos) });
+
+export const publicarPropiedad = (id) =>
+  apiClient(`/api/v1/propiedades/${id}/publicar`, { method: 'POST' });
+
+// pausado, publicado (reactivar), vendido o alquilado
+export const cambiarEstadoPropiedad = (id, estado) =>
+  apiClient(`/api/v1/propiedades/${id}/estado`, { method: 'PATCH', body: JSON.stringify({ estado }) });
+
+export const renovarPropiedad = (id) =>
+  apiClient(`/api/v1/propiedades/${id}/renovar`, { method: 'POST' });
+
+export const eliminarPropiedad = (id) =>
+  apiClient(`/api/v1/propiedades/${id}`, { method: 'DELETE' });

@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, VerificarCorreoPage, useAuth } from '../features/auth';
 import { PerfilPage } from '../features/perfil';
-import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage } from '../features/propiedades';
+import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage, MisPropiedadesPage } from '../features/propiedades';
 import { MensajesPage, AvisosTiempoReal, EstadoConexion } from '../features/mensajes';
 import { VisitasPage } from '../features/agenda';
 import { PerfilVendedorPage } from '../features/resenas';
@@ -36,6 +36,17 @@ function PermissionRoute({ children, permiso }) {
   if (permiso && !tienePermiso(permiso)) return <Navigate to="/403" replace />;
   return children;
 }
+
+// Muestra /403 si el rol del usuario no está entre los indicados (sin distinguir mayúsculas;
+// los nombres de rol aún no están unificados: vendedor/seller)
+function RoleRoute({ children, roles }) {
+  const { user } = useAuth();
+  const rol = user?.rol?.toLowerCase();
+  if (!roles.includes(rol)) return <Navigate to="/403" replace />;
+  return children;
+}
+
+const ROLES_VENDEDOR = ['vendedor', 'seller'];
 
 export default function App() {
   return (
@@ -98,18 +109,19 @@ export default function App() {
         {/* alias legacy */}
         <Route path="/propiedades/nueva" element={<Navigate to="/publicar" replace />} />
 
+        {/* Gestión de anuncios: solo vendedores */}
         <Route path="/mis-propiedades" element={
           <ProtectedRoute>
-            <PermissionRoute permiso="propiedad.listar_propias">
-              <MainLayout><ComingSoonPage /></MainLayout>
-            </PermissionRoute>
+            <RoleRoute roles={ROLES_VENDEDOR}>
+              <MainLayout><MisPropiedadesPage /></MainLayout>
+            </RoleRoute>
           </ProtectedRoute>
         } />
         <Route path="/mis-propiedades/:id/editar" element={
           <ProtectedRoute>
-            <PermissionRoute permiso="propiedad.editar">
-              <MainLayout><ComingSoonPage /></MainLayout>
-            </PermissionRoute>
+            <RoleRoute roles={ROLES_VENDEDOR}>
+              <MainLayout><PublicarPropiedadPage modo="editar" /></MainLayout>
+            </RoleRoute>
           </ProtectedRoute>
         } />
         <Route path="/panel-vendedor" element={

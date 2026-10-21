@@ -38,3 +38,27 @@ export function definirPortada(propiedadId, fotoId) {
 export function eliminarFoto(propiedadId, fotoId) {
   return apiClient(`/api/v1/propiedades/${propiedadId}/fotos/${fotoId}`, { method: 'DELETE' });
 }
+
+// Lleva al servidor las fotos del formulario cuando la propiedad ya existe (borrador del servidor o edición).
+// fotos: [{ key, id?, file?, preview }] en el orden final (con id = ya está en el servidor; con file = nueva)
+// portadaKey: key de la portada; eliminadas: ids de fotos del servidor que se quitaron
+// Devuelve las fotos con su id del servidor, para no volver a subirlas si algo falla después
+export async function sincronizarFotos(propiedadId, fotos, portadaKey, eliminadas = []) {
+  // Primero se borran: así las nuevas caben en el máximo de fotos por propiedad
+  for (const fotoId of eliminadas) await eliminarFoto(propiedadId, fotoId);
+
+  const ids = new Map(fotos.filter((f) => f.id).map((f) => [f.key, f.id]));
+  const nuevas = fotos.filter((f) => !f.id);
+  if (nuevas.length) {
+    // El backend las agrega al final, en el orden enviado, y responde con todas las fotos
+    const todas = await subirFotos(propiedadId, nuevas.map((f) => f.file));
+    todas.slice(-nuevas.length).forEach((foto, i) => ids.set(nuevas[i].key, foto.id));
+  }
+
+  const orden = fotos.map((f) => ids.get(f.key));
+  if (orden.length) {
+    await reordenarFotos(propiedadId, orden);
+    await definirPortada(propiedadId, ids.get(portadaKey) ?? orden[0]);
+  }
+  return fotos.map((f) => ({ key: f.key, id: ids.get(f.key), preview: f.preview }));
+}

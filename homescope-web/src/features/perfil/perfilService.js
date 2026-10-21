@@ -10,7 +10,7 @@ export const updatePerfil = (datos) =>
 
 // Stubs — se reemplazarán cuando los módulos estén implementados
 export const getPropiedadesPublicadas = () =>
-  apiClient('/api/v1/propiedades/mias').catch(() => []);
+  apiClient('/api/v1/propiedades/mias?estado=publicado&pageSize=50').then((r) => r.data).catch(() => []);
 
 export const getPropiedadesGuardadas = () =>
   apiClient('/api/v1/favoritos').catch(() => []);
