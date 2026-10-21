@@ -13,6 +13,9 @@ const REFRESH_TTL_NORMAL   = '1d';
 const REFRESH_TTL_RECORDAR = '30d';
 const VERIFICACION_TTL_MS  = 24 * 60 * 60 * 1000;
 const RECUPERACION_TTL_MS  =  1 * 60 * 60 * 1000;
+// Un refresh token recién rotado se acepta de nuevo durante este tiempo: si dos peticiones lo usan a la
+// vez (dos pestañas que recargan, varias consultas que renuevan juntas) ninguna pierde la sesión
+const REUSO_GRACIA_MS      = 10 * 1000;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -33,9 +36,11 @@ function generarAccessToken(usuario) {
   );
 }
 
-function generarRefreshToken(usuario) {
-  return jwt.sign({ sub: usuario.id }, env.JWT_REFRESH_SECRET, {
-    expiresIn: REFRESH_TTL_NORMAL,
+// jti aleatorio: sin él, dos tokens del mismo usuario emitidos en el mismo segundo son idénticos
+// (mismo hash) y el segundo choca con la restricción única de token_hash
+function generarRefreshToken(usuario, recordar = false) {
+  return jwt.sign({ sub: usuario.id, jti: crypto.randomUUID() }, env.JWT_REFRESH_SECRET, {
+    expiresIn: recordar ? REFRESH_TTL_RECORDAR : REFRESH_TTL_NORMAL,
   });
 }
 
@@ -49,9 +54,11 @@ function expiracionDesde(ms) {
 
 function perfilPublico(usuario) {
   const { password_hash, ...rest } = usuario;
+  const roles = rolesDeUsuario(usuario);
   return {
     ...rest,
-    roles: rolesDeUsuario(usuario),
+    roles,
+    rol: roles[0], // igual que el login: el frontend guarda la sesión con `rol`
   };
 }
 
@@ -118,7 +125,7 @@ export class IdentidadService {
       throw new AppError('CUENTA_SUSPENDIDA', 'Tu cuenta ha sido suspendida', 403);
 
     const accessToken  = generarAccessToken(usuario);
-    const refreshPlano = generarRefreshToken(usuario);
+    const refreshPlano = generarRefreshToken(usuario, !!recordar);
     const ttlMs = recordar ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
     await repo.crearToken({
@@ -155,15 +162,10 @@ export class IdentidadService {
     }
 
     const registro = await repo.buscarToken(hashToken(tokenPlano));
-    if (!registro || registro.usado || registro.expira_en < new Date())
+    const ahora = Date.now();
+    const recienUsado = registro?.usado && registro.usado_en && ahora - registro.usado_en.getTime() < REUSO_GRACIA_MS;
+    if (!registro || registro.tipo !== 'refresh' || registro.expira_en < new Date() || (registro.usado && !recienUsado))
       throw new AppError('TOKEN_INVALIDO', 'Refresh token inválido o expirado', 401);
-
-    if (registro.usado) {
-      await repo.revocarTokensDeUsuario(payload.sub, 'refresh');
-      throw new AppError('TOKEN_REUTILIZADO', 'Sesión revocada por seguridad', 401);
-    }
-
-    await repo.marcarTokenUsado(registro.id);
 
     const usuario = await repo.buscarPorId(payload.sub);
     if (usuario.estado === 'suspendido')
@@ -173,15 +175,16 @@ export class IdentidadService {
     const ttlMs = recordar ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
     const accessToken  = generarAccessToken(usuario);
-    const refreshNuevo = generarRefreshToken(usuario);
+    const refreshNuevo = generarRefreshToken(usuario, recordar);
 
-    await repo.crearToken({
+    // Marcar el anterior como usado y guardar el nuevo, todo o nada: si falla, la cookie actual sigue sirviendo
+    const rotado = await repo.rotarRefreshToken(registro.id, {
       usuarioId: usuario.id,
-      tipo: 'refresh',
       tokenHash: hashToken(refreshNuevo),
       expiraEn: expiracionDesde(ttlMs),
       recordarSesion: recordar,
-    });
+    }, { graciaMs: REUSO_GRACIA_MS });
+    if (!rotado) throw new AppError('TOKEN_INVALIDO', 'Refresh token inválido o expirado', 401);
 
     return { accessToken, refreshToken: refreshNuevo, recordar };
   }

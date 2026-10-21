@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { setAccessToken, apiClient } from '../../shared/api/client';
+import { setAccessToken, apiClient, refreshToken } from '../../shared/api/client';
 
 const AuthContext = createContext(null);
 const SESSION_KEY = 'homescope_user';
@@ -67,27 +67,18 @@ export function AuthProvider({ children }) {
 
     async function restaurarSesion() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-        });
-        if (!res.ok) {
-          sessionStorage.removeItem(SESSION_KEY);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-        const data = await res.json();
+        await refreshToken();
         if (sesionCerrada.current) return;
-        if (!data?.accessToken) { setLoading(false); return; }
-        setAccessToken(data.accessToken);
         const perfil = await apiClient('/api/v1/auth/perfil');
         if (sesionCerrada.current) return;
-        const u = { id: perfil.id, nombre: perfil.nombre, email: perfil.email, rol: perfil.rol };
+        // Sin el rol, al recargar el usuario quedaba con sesión pero sin permisos (menú de visitante, /403)
+        const u = { id: perfil.id, nombre: perfil.nombre, email: perfil.email, rol: perfil.rol ?? perfil.roles?.[0] };
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(u));
         setUser(u);
-      } catch {
-        sessionStorage.removeItem(SESSION_KEY);
+      } catch (err) {
+        // Solo un rechazo de la API (401/403) significa que la sesión terminó. Si la API no respondió
+        // (caída o sin red) se conserva el usuario guardado para que la próxima recarga lo vuelva a intentar
+        if ([401, 403].includes(err?.status)) sessionStorage.removeItem(SESSION_KEY);
         setUser(null);
       } finally {
         setLoading(false);

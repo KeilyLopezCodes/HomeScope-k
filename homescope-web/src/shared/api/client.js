@@ -10,16 +10,31 @@ export function setAccessToken(token) {
 // Para la conexión de Socket.io, que se autentica con el mismo access token
 export const getAccessToken = () => accessToken;
 
-// Renueva el access token con la cookie de refresh; lanza un error si la sesión ya expiró
-export async function refreshToken() {
-  const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  if (!res.ok) throw new Error('Sesión expirada');
-  const data = await res.json();
-  setAccessToken(data.accessToken);
-  return data.accessToken;
+// Renueva el access token con la cookie de refresh; lanza un error (con status) si la sesión ya expiró.
+// El refresh token es de un solo uso: si varias partes piden renovar a la vez (consultas que reciben 401
+// juntas, el socket, la restauración de sesión) comparten la misma petición en lugar de gastarlo dos veces
+let renovacionEnCurso = null;
+
+export function refreshToken() {
+  renovacionEnCurso ??= (async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const error = new Error('Sesión expirada');
+        error.status = res.status;
+        throw error;
+      }
+      const data = await res.json();
+      setAccessToken(data.accessToken);
+      return data.accessToken;
+    } finally {
+      renovacionEnCurso = null;
+    }
+  })();
+  return renovacionEnCurso;
 }
 
 export async function apiClient(path, options = {}) {

@@ -105,6 +105,26 @@ export class IdentidadRepository {
     });
   }
 
+  // Rotación del refresh token en una transacción: marca el actual como usado y crea el nuevo.
+  // Si el actual ya estaba usado (otra petición lo rotó primero), solo rota si ese uso fue hace menos
+  // de `graciaMs`; usado_en no se cambia, para que la gracia cuente desde el primer uso. Devuelve si rotó
+  async rotarRefreshToken(idActual, { usuarioId, tokenHash, expiraEn, recordarSesion }, { graciaMs = 0 } = {}) {
+    return prisma.$transaction(async (tx) => {
+      const { count } = await tx.tokenUsuario.updateMany({
+        where: { id: idActual, usado: false },
+        data:  { usado: true, usado_en: new Date() },
+      });
+      if (count === 0) {
+        const actual = await tx.tokenUsuario.findUnique({ where: { id: idActual }, select: { usado_en: true } });
+        if (!actual?.usado_en || Date.now() - actual.usado_en.getTime() >= graciaMs) return false;
+      }
+      await tx.tokenUsuario.create({
+        data: { usuario_id: usuarioId, tipo: 'refresh', token_hash: tokenHash, expira_en: expiraEn, recordar_sesion: recordarSesion },
+      });
+      return true;
+    });
+  }
+
   async revocarTokensDeUsuario(usuarioId, tipo) {
     return prisma.tokenUsuario.updateMany({
       where: { usuario_id: usuarioId, tipo, usado: false },
