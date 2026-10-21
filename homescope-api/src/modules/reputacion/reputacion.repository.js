@@ -49,8 +49,8 @@ export class ReputacionRepository {
     return { items, total };
   }
 
-  async cambiarEstadoComentario(id, estado) {
-    return prisma.comentarioZona.update({ where: { id }, data: { estado }, select: COMENTARIO_SELECT });
+  async cambiarEstadoComentario(id, estado, db = prisma) {
+    return db.comentarioZona.update({ where: { id }, data: { estado }, select: COMENTARIO_SELECT });
   }
 
   // ── Reseñas ────────────────────────────────────────────────────────────────

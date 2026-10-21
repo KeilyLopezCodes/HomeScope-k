@@ -3,11 +3,12 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { iniciarTrabajos, detenerTrabajos } from './jobs/index.js';
 import { realtime } from './shared/adapters/realtime.adapter.js';
+import { cuentaActiva } from './shared/middleware/auth.js';
 
 const httpServer = createServer(app);
 
 // Socket.io autenticado con el access token y una sala por usuario (arquitectura §10.3)
-realtime.iniciar(httpServer);
+realtime.iniciar(httpServer, { cuentaActiva });
 
 httpServer.listen(env.PORT, () => {
   console.log(`API corriendo en puerto ${env.PORT}`);

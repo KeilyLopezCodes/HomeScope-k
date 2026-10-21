@@ -192,13 +192,14 @@ export class PropiedadesRepository {
     });
   }
 
-  async eliminar(id) {
-    return prisma.propiedad.delete({ where: { id } });
+  // db: el cliente o una transacción (moderación elimina y registra la acción en la misma transacción)
+  async eliminar(id, db = prisma) {
+    return db.propiedad.delete({ where: { id } });
   }
 
   // Cambia el estado; al publicar registra fecha_publicacion y, si se indica, la nueva fecha_expiracion
-  async cambiarEstado(id, nuevoEstado, { fechaExpiracion } = {}) {
-    return prisma.propiedad.update({
+  async cambiarEstado(id, nuevoEstado, { fechaExpiracion } = {}, db = prisma) {
+    return db.propiedad.update({
       where: { id },
       data:  {
         estado: nuevoEstado,
@@ -363,5 +364,57 @@ export class PropiedadesRepository {
         FROM vista_propiedad
        WHERE propiedad_id = ANY(${ids}::int[]) AND fecha_vista >= ${desde}
        GROUP BY 1`;
+  }
+
+  // ── Moderación ──────────────────────────────────────────────────────────────
+
+  async datosModeracion(id) {
+    return prisma.propiedad.findUnique({
+      where:  { id },
+      select: { id: true, titulo: true, estado: true, vendedor_id: true, fecha_expiracion: true },
+    });
+  }
+
+  // Publicaciones para el administrador; con reportadas, solo las que tienen reportes abiertos,
+  // las más reportadas primero
+  async listarParaModeracion({ reportadas, estado, page, pageSize }) {
+    const abiertos = { estado: { in: ['pendiente', 'en_revision'] } };
+    const where = { ...(estado && { estado }), ...(reportadas && { reportes: { some: abiertos } }) };
+    const [items, total] = await prisma.$transaction([
+      prisma.propiedad.findMany({
+        where,
+        orderBy: reportadas
+          ? [{ reportes: { _count: 'desc' } }, { id: 'desc' }]
+          : [{ fecha_actualizacion: 'desc' }, { id: 'desc' }],
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+        select:  {
+          id: true, titulo: true, estado: true, precio: true, moneda: true, fecha_publicacion: true,
+          vendedor: { select: { id: true, nombre: true, apellido: true, estado: true } },
+          fotos:    { where: { es_portada: true }, select: { url: true }, take: 1 },
+          reportes: {
+            where:   abiertos,
+            orderBy: { fecha_creacion: 'desc' },
+            select:  { id: true, motivo: true, descripcion: true, fecha_creacion: true, reportante: { select: { id: true, nombre: true } } },
+          },
+        },
+      }),
+      prisma.propiedad.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  async idsPublicadasDe(vendedorId) {
+    const filas = await prisma.propiedad.findMany({ where: { vendedor_id: vendedorId, estado: 'publicado' }, select: { id: true } });
+    return filas.map((f) => f.id);
+  }
+
+  // Cambia el estado de varias propiedades, solo de las que siguen en `desde`
+  async cambiarEstadoVarias(ids, desde, hacia, db = prisma) {
+    if (!ids.length) return [];
+    const actuales = await db.propiedad.findMany({ where: { id: { in: ids }, estado: desde }, select: { id: true } });
+    const cambiar = actuales.map((p) => p.id);
+    if (cambiar.length) await db.propiedad.updateMany({ where: { id: { in: cambiar } }, data: { estado: hacia } });
+    return cambiar;
   }
 }

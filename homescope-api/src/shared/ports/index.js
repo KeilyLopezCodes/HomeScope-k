@@ -31,6 +31,7 @@ export class MailPort {
 // RealtimePort — interfaz para Socket.io
 export class RealtimePort {
   async emitToUser(_userId, _event, _data) { throw new Error('Not implemented'); }
+  async desconectarUsuario(_userId) { throw new Error('Not implemented'); }
 }
 
 // JobPort — interfaz para pg-boss

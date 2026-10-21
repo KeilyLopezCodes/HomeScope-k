@@ -6,6 +6,7 @@ import { GeoIndiceRepository } from '../geo-indice/geo-indice.repository.js';
 import { ReputacionRepository } from '../reputacion/reputacion.repository.js';
 import { TRANSICIONES, FOTOS_CONFIG, VIGENCIA_DIAS, DIAS_AVISO_EXPIRACION, PESTANAS_MIAS } from './propiedades.schemas.js';
 import { IdentidadRepository } from '../identidad/identidad.repository.js';
+import { ModeracionRepository } from '../moderacion/moderacion.repository.js';
 import { rangoPeriodo, armarSerie, evaluarDesempeno, tasaInteres, diasActivos, UMBRALES } from './propiedades.estadisticas.js';
 import { storage } from '../../shared/adapters/storage/index.js';
 import { jobs } from '../../shared/adapters/jobs.adapter.js';
@@ -17,6 +18,7 @@ const favoritosRepo    = new FavoritosRepository();
 const geoIndiceRepo    = new GeoIndiceRepository();
 const reputacionRepo   = new ReputacionRepository();
 const identidadRepo    = new IdentidadRepository();
+const moderacionRepo   = new ModeracionRepository();
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 const enDias = (dias, desde = new Date()) => new Date(desde.getTime() + dias * DIA_MS);
@@ -470,7 +472,13 @@ export class PropiedadesService {
     const propiedad = await this._verificarDueno(propiedadId, usuarioId);
     this._validarTransicion(propiedad.estado, nuevoEstado);
     // Reactivar una pausada es volver a publicarla: aplica la misma política
-    if (nuevoEstado === 'publicado') await this._verificarPoliticaPublicacion(usuarioId);
+    if (nuevoEstado === 'publicado') {
+      await this._verificarPoliticaPublicacion(usuarioId);
+      const ultima = await moderacionRepo.ultimaAccion({ propiedadId }, ['pausar', 'aprobar']);
+      if (ultima?.accion === 'pausar')
+        throw new AppError('PAUSADA_POR_MODERACION',
+          'Esta publicación fue pausada por el equipo de moderación: no puedes reactivarla hasta que la revisen de nuevo.', 403);
+    }
     const actualizada = await repo.cambiarEstado(propiedadId, nuevoEstado, {
       fechaExpiracion: nuevoEstado === 'publicado' ? this._nuevaExpiracion(propiedad) : undefined,
     });

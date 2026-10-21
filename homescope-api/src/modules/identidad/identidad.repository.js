@@ -125,8 +125,8 @@ export class IdentidadRepository {
     });
   }
 
-  async revocarTokensDeUsuario(usuarioId, tipo) {
-    return prisma.tokenUsuario.updateMany({
+  async revocarTokensDeUsuario(usuarioId, tipo, db = prisma) {
+    return db.tokenUsuario.updateMany({
       where: { usuario_id: usuarioId, tipo, usado: false },
       data: { usado: true, usado_en: new Date() },
     });
@@ -150,5 +150,50 @@ export class IdentidadRepository {
       include: { rol: true },
     });
     return rows.map((r) => r.rol.nombre);
+  }
+
+  // ── Moderación ──────────────────────────────────────────────────────────────
+
+  async datosModeracion(id) {
+    return prisma.usuario.findUnique({
+      where:  { id },
+      select: { id: true, nombre: true, apellido: true, email: true, estado: true, usuario_rol: { select: { rol: { select: { nombre: true } } } } },
+    });
+  }
+
+  async cambiarEstadoCuenta(id, estado, db = prisma) {
+    return db.usuario.update({ where: { id }, data: { estado }, select: { id: true, estado: true } });
+  }
+
+  // Usuarios para el administrador; con reportados, solo los que tienen reportes abiertos, los más reportados primero
+  async listarParaModeracion({ reportados, estado, q, page, pageSize }) {
+    const abiertos = { estado: { in: ['pendiente', 'en_revision'] } };
+    const where = {
+      ...(estado && { estado }),
+      ...(reportados && { reportes_recibidos: { some: abiertos } }),
+      ...(q && { OR: ['nombre', 'apellido', 'email'].map((campo) => ({ [campo]: { contains: q, mode: 'insensitive' } })) }),
+    };
+    const [items, total] = await prisma.$transaction([
+      prisma.usuario.findMany({
+        where,
+        orderBy: reportados
+          ? [{ reportes_recibidos: { _count: 'desc' } }, { id: 'desc' }]
+          : [{ fecha_registro: 'desc' }, { id: 'desc' }],
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+        select:  {
+          id: true, nombre: true, apellido: true, email: true, estado: true, fecha_registro: true, ultimo_acceso: true,
+          usuario_rol: { select: { rol: { select: { nombre: true } } } },
+          _count:      { select: { propiedades: { where: { estado: 'publicado' } } } },
+          reportes_recibidos: {
+            where:   abiertos,
+            orderBy: { fecha_creacion: 'desc' },
+            select:  { id: true, motivo: true, descripcion: true, fecha_creacion: true, reportante: { select: { id: true, nombre: true } } },
+          },
+        },
+      }),
+      prisma.usuario.count({ where }),
+    ]);
+    return { items, total };
   }
 }

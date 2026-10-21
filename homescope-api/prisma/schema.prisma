@@ -61,6 +61,8 @@ model Usuario {
   conversaciones_vendedor  Conversacion[] @relation("ConversacionVendedor")
   mensajes_enviados        Mensaje[]
   notificaciones           Notificacion[]
+  acciones_moderacion_realizadas AccionModeracion[] @relation("AccionAdministrador")
+  acciones_moderacion_recibidas  AccionModeracion[] @relation("AccionUsuario")
   disponibilidad           DisponibilidadVendedor[]
   visitas_solicitadas      Visita[]
   resenas_recibidas        Resena[]  @relation("ResenaVendedor")
@@ -131,6 +133,7 @@ model Propiedad {
   resenas            Resena[]
   comentarios_zona   ComentarioZona[]
   reportes           Reporte[]
+  acciones_moderacion AccionModeracion[]
 
   @@index([vendedor_id])
   @@index([vendedor_id, estado])
@@ -425,6 +428,31 @@ model Reporte {
   propiedad            Propiedad?      @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
   comentario_zona      ComentarioZona? @relation(fields: [comentario_zona_id], references: [id], onDelete: Cascade)
 
+  acciones             AccionModeracion[]
+
   @@index([estado, fecha_creacion])
   @@map("reporte")
+}
+
+// Acciones del administrador (migración 20261026120000_acciones_moderacion). Las referencias pasan a
+// NULL si el objetivo se borra; `detalle` conserva una copia legible
+model AccionModeracion {
+  id               Int        @id @default(autoincrement())
+  administrador_id Int
+  reporte_id       Int?
+  accion           String     @db.VarChar(20) // aprobar|pausar|eliminar|suspender|reactivar|ocultar_comentario|descartar_reporte
+  propiedad_id     Int?
+  usuario_id       Int?
+  motivo           String     @db.VarChar(300)
+  detalle          Json?
+  fecha_accion     DateTime   @default(now()) @db.Timestamptz
+  administrador    Usuario    @relation("AccionAdministrador", fields: [administrador_id], references: [id])
+  reporte          Reporte?   @relation(fields: [reporte_id], references: [id], onDelete: SetNull)
+  propiedad        Propiedad? @relation(fields: [propiedad_id], references: [id], onDelete: SetNull)
+  usuario          Usuario?   @relation("AccionUsuario", fields: [usuario_id], references: [id], onDelete: SetNull)
+
+  @@index([propiedad_id, fecha_accion])
+  @@index([usuario_id, fecha_accion])
+  @@index([fecha_accion])
+  @@map("accion_moderacion")
 }
