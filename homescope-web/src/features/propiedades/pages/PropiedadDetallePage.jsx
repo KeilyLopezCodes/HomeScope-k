@@ -102,14 +102,15 @@ export default function PropiedadDetallePage() {
   const { data: propiedad, isPending, isError, error, refetch } =
     usePropiedad(id, { usuarioId: user?.id ?? null, enabled: idValido && sesionVerificada });
 
-  // Registra la vista una vez por ficha para el historial del comprador (el backend ignora al dueño)
+  // Cada apertura de la ficha suma una vista, con o sin sesión (el backend ignora al dueño).
+  // Con sesión también entra al historial del usuario
   const vistaRegistrada = useRef(null);
   useEffect(() => {
-    if (!user || !propiedad || propiedad.es_dueno || propiedad.estado !== 'publicado') return;
+    if (!propiedad || propiedad.es_dueno || propiedad.estado !== 'publicado') return;
     if (vistaRegistrada.current === propiedad.id) return;
     vistaRegistrada.current = propiedad.id;
     registrarVista(propiedad.id).catch(() => {});
-  }, [user, propiedad]);
+  }, [propiedad]);
 
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
 
