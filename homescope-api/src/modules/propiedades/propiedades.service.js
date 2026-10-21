@@ -120,6 +120,37 @@ export class PropiedadesService {
     };
   }
 
+  // GET /propiedades/:id/historial-precios — con la misma visibilidad que la ficha
+  async historialPrecios(propiedadId, paginacion, solicitante = null) {
+    await this.verificarVisible(propiedadId, solicitante);
+    const [{ items, total }, actual] = await Promise.all([
+      repo.listarHistorialPrecios(propiedadId, paginacion),
+      repo.precioActual(propiedadId),
+    ]);
+    return {
+      propiedad_id:      propiedadId,
+      precio_actual:     actual.precio,
+      moneda_actual:     actual.moneda,
+      fecha_publicacion: actual.fecha_publicacion,
+      data:  items.map((h) => {
+        // La variación solo tiene sentido si no cambió la moneda
+        const misma = h.moneda_anterior === h.moneda_nueva;
+        const anterior = Number(h.precio_anterior);
+        const diferencia = Number(h.precio_nuevo) - anterior;
+        return {
+          ...h,
+          variacion: misma ? {
+            monto:      Math.round(diferencia * 100) / 100,
+            porcentaje: anterior ? Math.round((diferencia / anterior) * 1000) / 10 : null,
+            tipo:       diferencia < 0 ? 'baja' : 'subida',
+          } : { tipo: 'cambio_moneda' },
+        };
+      }),
+      total,
+      ...paginacion,
+    };
+  }
+
   // Coordenadas de una propiedad visible para el solicitante (lo usa geo-indice para los puntos de interés)
   async obtenerUbicacion(propiedadId, solicitante = null) {
     const propiedad = await repo.buscarUbicacion(propiedadId);
@@ -195,17 +226,18 @@ export class PropiedadesService {
     if (['vendido', 'alquilado'].includes(propiedad.estado))
       throw new AppError('ESTADO_INVALIDO', 'No se puede editar una propiedad vendida o alquilada', 422);
 
-    // Si cambia el precio, registrar en historial
-    if (datos.precio !== undefined && Number(datos.precio) !== Number(propiedad.precio)) {
-      await repo.registrarHistorialPrecio(
-        propiedadId,
-        propiedad.precio,
-        datos.precio,
-        usuarioId
-      );
-    }
+    // Si cambia el precio o la moneda, el cambio queda en el historial (en la misma transacción)
+    const precioNuevo = datos.precio  ?? propiedad.precio;
+    const monedaNueva = datos.moneda  ?? propiedad.moneda;
+    const cambioPrecio = Number(precioNuevo) !== Number(propiedad.precio) || monedaNueva !== propiedad.moneda
+      ? {
+        precio_anterior: propiedad.precio, moneda_anterior: propiedad.moneda,
+        precio_nuevo:    precioNuevo,      moneda_nueva:    monedaNueva,
+        cambiado_por:    usuarioId,
+      }
+      : null;
 
-    const actualizada = await repo.actualizar(propiedadId, datos);
+    const actualizada = await repo.actualizar(propiedadId, datos, cambioPrecio);
 
     // Si cambió la ubicación de una propiedad publicada, se recalcula su índice (RF-17).
     // Las no publicadas se calculan al publicarse.
@@ -214,7 +246,11 @@ export class PropiedadesService {
     const recalculando = cambioUbicacion && propiedad.estado === 'publicado'
       && await this._encolarIndice(propiedadId);
 
-    return { ...actualizada, recalculando_indice: Boolean(recalculando) };
+    return {
+      ...actualizada,
+      precio_registrado_en_historial: Boolean(cambioPrecio),
+      recalculando_indice:            Boolean(recalculando),
+    };
   }
 
   async eliminar(propiedadId, usuarioId) {

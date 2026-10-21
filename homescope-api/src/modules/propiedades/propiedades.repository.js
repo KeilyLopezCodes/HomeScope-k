@@ -101,7 +101,9 @@ export class PropiedadesRepository {
         },
         // Sin `cambiado_por`: quién cambió el precio no se expone en la ficha pública
         historial_precios: {
-          select:  { id: true, precio_anterior: true, precio_nuevo: true, fecha_cambio: true },
+          select:  {
+            id: true, precio_anterior: true, precio_nuevo: true, moneda_anterior: true, moneda_nueva: true, fecha_cambio: true,
+          },
           orderBy: { fecha_cambio: 'asc' },
         },
       },
@@ -165,11 +167,17 @@ export class PropiedadesRepository {
     });
   }
 
-  async actualizar(id, datos) {
-    return prisma.propiedad.update({
-      where:  { id },
-      data:   datos,
-      select: { id: true, titulo: true, estado: true, fecha_actualizacion: true },
+  // Actualiza la propiedad y, si cambió el precio o la moneda, registra el cambio en el historial.
+  // Todo en una transacción: no queda un registro de historial de un cambio que no se guardó, ni al revés.
+  // cambioPrecio: { precio_anterior, precio_nuevo, moneda_anterior, moneda_nueva, cambiado_por } o null
+  async actualizar(id, datos, cambioPrecio = null) {
+    return prisma.$transaction(async (tx) => {
+      if (cambioPrecio) await tx.historialPrecio.create({ data: { propiedad_id: id, ...cambioPrecio } });
+      return tx.propiedad.update({
+        where:  { id },
+        data:   datos,
+        select: { id: true, titulo: true, estado: true, precio: true, moneda: true, fecha_actualizacion: true },
+      });
     });
   }
 
@@ -277,15 +285,27 @@ export class PropiedadesRepository {
     ]);
   }
 
-  // Registra cambio de precio en historial
-  async registrarHistorialPrecio(propiedadId, precioAnterior, precioNuevo, usuarioId) {
-    return prisma.historialPrecio.create({
-      data: {
-        propiedad_id:    propiedadId,
-        precio_anterior: precioAnterior,
-        precio_nuevo:    precioNuevo,
-        cambiado_por:    usuarioId,
-      },
-    });
+  // Historial de precios de una propiedad, del cambio más reciente al más antiguo.
+  // Sin `cambiado_por`: quién hizo el cambio no se expone (solo el dueño puede editar el precio)
+  async listarHistorialPrecios(propiedadId, { page, pageSize }) {
+    const where = { propiedad_id: propiedadId };
+    const [items, total] = await prisma.$transaction([
+      prisma.historialPrecio.findMany({
+        where,
+        orderBy: [{ fecha_cambio: 'desc' }, { id: 'desc' }],
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+        select:  {
+          id: true, fecha_cambio: true,
+          precio_anterior: true, moneda_anterior: true, precio_nuevo: true, moneda_nueva: true,
+        },
+      }),
+      prisma.historialPrecio.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  async precioActual(id) {
+    return prisma.propiedad.findUnique({ where: { id }, select: { precio: true, moneda: true, fecha_publicacion: true } });
   }
 }

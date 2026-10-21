@@ -135,8 +135,8 @@ async function main() {
       const haceDias = (d) => new Date(Date.now() - d * 24 * 60 * 60 * 1000);
       await prisma.historialPrecio.createMany({
         data: [
-          { propiedad_id: propiedad.id, precio_anterior: inicial,    precio_nuevo: intermedio, cambiado_por: vendedor.id, fecha_cambio: haceDias(40) },
-          { propiedad_id: propiedad.id, precio_anterior: intermedio, precio_nuevo: actual,     cambiado_por: vendedor.id, fecha_cambio: haceDias(10) },
+          { propiedad_id: propiedad.id, precio_anterior: inicial,    precio_nuevo: intermedio, moneda_anterior: datos.moneda, moneda_nueva: datos.moneda, cambiado_por: vendedor.id, fecha_cambio: haceDias(40) },
+          { propiedad_id: propiedad.id, precio_anterior: intermedio, precio_nuevo: actual,     moneda_anterior: datos.moneda, moneda_nueva: datos.moneda, cambiado_por: vendedor.id, fecha_cambio: haceDias(10) },
         ],
       });
     }

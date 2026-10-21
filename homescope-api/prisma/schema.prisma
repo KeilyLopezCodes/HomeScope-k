@@ -158,12 +158,15 @@ model HistorialPrecio {
   propiedad_id    Int
   precio_anterior Decimal   @db.Decimal(14, 2)
   precio_nuevo    Decimal   @db.Decimal(14, 2)
+  moneda_anterior String    @db.Char(3) // GTQ|USD
+  moneda_nueva    String    @db.Char(3)
   cambiado_por    Int
   fecha_cambio    DateTime  @default(now()) @db.Timestamptz
   propiedad       Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
   usuario         Usuario   @relation("HistorialPrecioCambio", fields: [cambiado_por], references: [id])
 
   @@index([propiedad_id])
+  @@index([propiedad_id, fecha_cambio])
   @@map("historial_precio")
 }
 

@@ -280,6 +280,56 @@ router.get('/:id', optionalAuth, controller.getById);
 
 /**
  * @openapi
+ * /propiedades/{id}/historial-precios:
+ *   get:
+ *     tags: [Propiedades]
+ *     summary: Historial de precios de una propiedad
+ *     description: |
+ *       Cada vez que el dueño cambia el precio o la moneda (`PUT /propiedades/{id}`) se registra
+ *       automáticamente un cambio con la fecha, el precio y la moneda anterior y nuevo. Del cambio más
+ *       reciente al más antiguo. `variacion` indica cuánto subió o bajó (o `cambio_moneda` si cambió la moneda).
+ *       Misma visibilidad que la ficha: una propiedad no publicada responde 404, salvo para su dueño y el administrador.
+ *     security: [{}, { bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *       - { in: query, name: page, schema: { type: integer, default: 1 } }
+ *       - { in: query, name: pageSize, schema: { type: integer, default: 20, maximum: 50 } }
+ *     responses:
+ *       200:
+ *         description: Historial paginado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 precio_actual: { type: string, example: "321" }
+ *                 moneda_actual: { type: string, example: USD }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:              { type: integer }
+ *                       fecha_cambio:    { type: string, format: date-time }
+ *                       precio_anterior: { type: string, example: "369" }
+ *                       moneda_anterior: { type: string, example: USD }
+ *                       precio_nuevo:    { type: string, example: "321" }
+ *                       moneda_nueva:    { type: string, example: USD }
+ *                       variacion:
+ *                         type: object
+ *                         properties:
+ *                           tipo:       { type: string, enum: [baja, subida, cambio_moneda] }
+ *                           monto:      { type: number, example: -48 }
+ *                           porcentaje: { type: number, example: -13 }
+ *                 total:    { type: integer }
+ *                 page:     { type: integer }
+ *                 pageSize: { type: integer }
+ *       404: { description: La propiedad no existe o no está publicada. }
+ */
+router.get('/:id/historial-precios', optionalAuth, controller.getHistorialPrecios);
+
+/**
+ * @openapi
  * /propiedades/{id}/vista:
  *   post:
  *     tags: [Propiedades]
@@ -385,7 +435,8 @@ router.post('/', authenticate, requirePermission('propiedad.crear'), controller.
  *     summary: Editar propiedad (solo el dueño)
  *     description: |
  *       Actualiza cualquier subconjunto de campos. Solo el vendedor dueño puede editar.
- *       Si cambia el precio, se registra automáticamente en `historial_precio`.
+ *       Si cambia el precio o la moneda, el cambio se registra automáticamente en el historial
+ *       (`GET /propiedades/{id}/historial-precios`), en la misma transacción que la edición.
  *       Si cambian `latitud` o `longitud` de una propiedad publicada, se encola el recálculo del
  *       Índice de Conveniencia (`recalculando_indice: true`); el nuevo índice aparece en la ficha en segundos.
  *       No se puede editar una propiedad con estado `vendido` o `alquilado`.
@@ -428,6 +479,7 @@ router.post('/', authenticate, requirePermission('propiedad.crear'), controller.
  *                 titulo:              { type: string }
  *                 estado:              { type: string }
  *                 fecha_actualizacion: { type: string, format: date-time }
+ *                 precio_registrado_en_historial: { type: boolean, description: "true si cambió el precio o la moneda" }
  *                 recalculando_indice: { type: boolean }
  *       403:
  *         description: No eres el dueño de esta propiedad.

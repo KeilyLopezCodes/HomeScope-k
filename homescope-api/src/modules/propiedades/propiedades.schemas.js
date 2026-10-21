@@ -9,7 +9,8 @@ const camposPropiedad = {
   titulo:            z.string().min(3).max(150),
   descripcion:       z.string().min(20).max(5000).optional(),
   modalidad:         z.enum(MODALIDADES),
-  precio:            z.coerce.number().positive(),
+  // Tope de la columna NUMERIC(14,2): sin él, un precio enorme llegaría a la BD y respondería 500
+  precio:            z.coerce.number().positive().max(999_999_999_999.99, 'El precio es demasiado alto'),
   moneda:            z.enum(MONEDAS),
   habitaciones:      z.coerce.number().int().min(0).optional().nullable(),
   banos:             z.coerce.number().min(0).optional().nullable(),
@@ -83,6 +84,12 @@ export const listarPropiedadesSchema = z.object({
     // Los filtros de precio se aplican en quetzales salvo que se pida otra moneda
     moneda: f.moneda ?? (f.precio_min != null || f.precio_max != null ? 'GTQ' : undefined),
   }));
+
+// GET /propiedades/:id/historial-precios
+export const historialPreciosSchema = z.object({
+  page:     z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
 
 // ── Fotos ──────────────────────────────────────────────────────────────────
 

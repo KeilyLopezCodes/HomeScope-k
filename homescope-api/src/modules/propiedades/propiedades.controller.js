@@ -1,7 +1,7 @@
 import { PropiedadesService } from './propiedades.service.js';
 import {
   crearPropiedadSchema, editarPropiedadSchema, ESTADOS_VALIDOS,
-  subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema,
+  subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema, historialPreciosSchema,
 } from './propiedades.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
@@ -42,6 +42,14 @@ export async function getById(req, res, next) {
     const solicitante = req.user ? { id: req.user.sub, roles: req.user.roles } : null;
     const data = await service.getById(id, solicitante);
     res.json(data);
+  } catch (err) { next(err); }
+}
+
+export async function getHistorialPrecios(req, res, next) {
+  try {
+    const id = parseId(req.params.id);
+    const solicitante = req.user ? { id: req.user.sub, roles: req.user.roles } : null;
+    res.json(await service.historialPrecios(id, validar(historialPreciosSchema, req.query), solicitante));
   } catch (err) { next(err); }
 }
 
