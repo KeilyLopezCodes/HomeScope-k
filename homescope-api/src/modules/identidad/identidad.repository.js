@@ -196,4 +196,27 @@ export class IdentidadRepository {
     ]);
     return { items, total };
   }
+
+  // Estadísticas de la plataforma: usuarios por estado y por rol, nuevos desde `desde` y nuevos por día
+  async estadisticasPlataforma(desde) {
+    const [total, nuevos, porEstado, porRol, porDia] = await Promise.all([
+      prisma.usuario.count(),
+      prisma.usuario.count({ where: { fecha_registro: { gte: desde } } }),
+      prisma.usuario.groupBy({ by: ['estado'], _count: true }),
+      prisma.$queryRaw`
+      SELECT r.nombre AS rol, count(DISTINCT ur.usuario_id)::int AS total
+        FROM usuario_rol ur JOIN rol r ON r.id = ur.rol_id
+       GROUP BY r.nombre`,
+      prisma.$queryRaw`
+      SELECT to_char(fecha_registro AT TIME ZONE 'America/Guatemala', 'YYYY-MM-DD') AS fecha, count(*)::int AS total
+        FROM usuario
+       WHERE fecha_registro >= ${desde}
+       GROUP BY 1`,
+    ]);
+    return {
+      total, nuevos, porDia,
+      porEstado: Object.fromEntries(porEstado.map((g) => [g.estado, g._count])),
+      porRol:    Object.fromEntries(porRol.map((g) => [g.rol, g.total])),
+    };
+  }
 }

@@ -147,4 +147,29 @@ export class ModeracionRepository {
       select:  { id: true, accion: true, detalle: true, fecha_accion: true },
     });
   }
+
+  // Estadísticas: reportes abiertos por tipo y acciones del período por tipo
+  async estadisticasModeracion(desde) {
+    const [abiertos, acciones] = await Promise.all([
+      prisma.reporte.groupBy({ by: ['tipo_objetivo'], where: { estado: { in: ESTADOS_ABIERTOS } }, _count: true }),
+      prisma.accionModeracion.groupBy({ by: ['accion'], where: { fecha_accion: { gte: desde } }, _count: true }),
+    ]);
+    return {
+      reportesAbiertos: Object.fromEntries(abiertos.map((g) => [g.tipo_objetivo, g._count])),
+      acciones:         Object.fromEntries(acciones.map((g) => [g.accion, g._count])),
+    };
+  }
+
+  // Publicaciones cuya última decisión de moderación fue pausarlas (las que el administrador puede aprobar)
+  async idsPausadasPorModeracion() {
+    const filas = await prisma.$queryRaw`
+      SELECT propiedad_id FROM (
+        SELECT DISTINCT ON (propiedad_id) propiedad_id, accion
+          FROM accion_moderacion
+         WHERE propiedad_id IS NOT NULL AND accion IN ('pausar', 'aprobar')
+         ORDER BY propiedad_id, fecha_accion DESC, id DESC
+      ) ultimas
+      WHERE accion = 'pausar'`;
+    return filas.map((f) => f.propiedad_id);
+  }
 }

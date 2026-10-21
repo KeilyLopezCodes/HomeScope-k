@@ -2,6 +2,7 @@ import { ModeracionService } from './moderacion.service.js';
 import {
   crearReporteSchema, listarReportesSchema, resolverReporteSchema,
   listarPropiedadesAdminSchema, listarUsuariosAdminSchema, crearAccionSchema, listarAccionesSchema,
+  estadisticasPlataformaSchema,
 } from './moderacion.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
@@ -60,6 +61,12 @@ export async function getUsuarios(req, res, next) {
 export async function crearAccion(req, res, next) {
   try {
     res.status(201).json(await service.ejecutarAccion(usuarioDe(req), validar(crearAccionSchema, req.body)));
+  } catch (err) { next(err); }
+}
+
+export async function getEstadisticas(req, res, next) {
+  try {
+    res.json(await service.estadisticasPlataforma(validar(estadisticasPlataformaSchema, req.query)));
   } catch (err) { next(err); }
 }
 

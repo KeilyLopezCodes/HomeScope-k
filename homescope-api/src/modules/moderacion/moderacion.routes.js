@@ -120,9 +120,12 @@ router.put('/reportes/:id', controller.resolverReporte);
  *     description: |
  *       Con `reportadas=true` (por defecto) solo las que tienen reportes abiertos, las más reportadas primero, con
  *       `reportes_abiertos`, `motivos` (cuántos por motivo), `ultimo_reporte` y los reportes. Con `reportadas=false`, todas.
+ *       Con `pausadas_por_moderacion=true`, las que moderación pausó y aún no aprueba (sus reportes ya están
+ *       resueltos, por eso no salen como reportadas). Cada una trae `pausada_por_moderacion`.
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - { in: query, name: reportadas, schema: { type: boolean, default: true } }
+ *       - { in: query, name: pausadas_por_moderacion, schema: { type: boolean, default: false } }
  *       - { in: query, name: estado, schema: { type: string, enum: [borrador, publicado, pausado, vendido, alquilado] } }
  *       - { in: query, name: page, schema: { type: integer, default: 1 } }
  *       - { in: query, name: pageSize, schema: { type: integer, default: 20, maximum: 50 } }
@@ -215,6 +218,37 @@ router.get('/usuarios', controller.getUsuarios);
  */
 router.post('/acciones', controller.crearAccion);
 router.get('/acciones', controller.getAcciones);
+
+/**
+ * @openapi
+ * /admin/estadisticas:
+ *   get:
+ *     tags: [Moderación]
+ *     summary: Estadísticas generales de la plataforma (solo administrador)
+ *     description: |
+ *       Totales actuales y actividad de los últimos `dias` días (hora de Guatemala): usuarios (por estado y rol,
+ *       nuevos), publicaciones (por estado, nuevas publicaciones), actividad (vistas, favoritos, mensajes,
+ *       conversaciones, visitas solicitadas, reseñas y calificación promedio), moderación (reportes abiertos
+ *       por tipo, acciones del período) y `serie` por día con usuarios nuevos, publicaciones nuevas, vistas y mensajes.
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: dias, schema: { type: integer, enum: [7, 30, 90], default: 30 } }
+ *     responses:
+ *       200:
+ *         description: Estadísticas.
+ *         content:
+ *           application/json:
+ *             example:
+ *               periodo: { dias: 30, desde: "2026-09-22", hasta: "2026-10-21" }
+ *               usuarios: { total: 39, nuevos: 27, por_estado: { activo: 38, suspendido: 1 }, por_rol: { comprador: 30, vendedor: 6, administrador: 1 } }
+ *               propiedades: { total: 81, publicadas: 36, nuevas_publicaciones: 12, por_estado: { publicado: 36, borrador: 5, pausado: 4 } }
+ *               actividad: { vistas: 2130, favoritos: 44, mensajes: 73, conversaciones: 30, visitas_solicitadas: 8, resenas: 5, calificacion_promedio: 4.1 }
+ *               moderacion: { reportes_abiertos: 13, reportes_por_tipo: { propiedad: 7, usuario: 3, comentario: 3 }, acciones: 3, acciones_por_tipo: { pausar: 1 } }
+ *               serie: [{ fecha: "2026-10-21", usuarios_nuevos: 0, publicaciones_nuevas: 1, vistas: 77, mensajes: 2 }]
+ *       403: { description: El usuario no es administrador. }
+ *       422: { description: Período inválido. }
+ */
+router.get('/estadisticas', controller.getEstadisticas);
 
 router.get('/verificaciones', controller.getVerificaciones);
 router.put('/verificaciones/:id', controller.resolverVerificacion);

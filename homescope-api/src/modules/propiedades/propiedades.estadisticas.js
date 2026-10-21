@@ -1,8 +1,9 @@
 // Reglas del panel del vendedor: período de consulta, serie diaria y sugerencias ante bajo desempeño.
 // Funciones puras (sin Prisma ni Express) para poder probarlas sin base de datos.
 
-export const ZONA_HORARIA = 'America/Guatemala';
-export const PERIODOS_ESTADISTICAS = [7, 30, 90];
+import { PERIODOS_ESTADISTICAS, ZONA_HORARIA, diaLocal, rangoPeriodo } from '../../shared/utils/periodo.js';
+
+export { PERIODOS_ESTADISTICAS, ZONA_HORARIA, diaLocal, rangoPeriodo };
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -16,21 +17,6 @@ export const UMBRALES = {
   fotosRecomendadas: 5,
   descripcionMinima: 150,  // caracteres
 };
-
-const formatoDia = new Intl.DateTimeFormat('en-CA', {
-  timeZone: ZONA_HORARIA, year: 'numeric', month: '2-digit', day: '2-digit',
-});
-
-// Fecha → 'YYYY-MM-DD' en la hora de Guatemala
-export const diaLocal = (fecha) => formatoDia.format(fecha);
-
-// Los últimos `dias` días, hoy incluido: la lista de fechas y el instante en que empieza el primero.
-// Guatemala no tiene horario de verano: es UTC−6 todo el año
-export function rangoPeriodo(dias, ahora = new Date()) {
-  const fechas = [];
-  for (let i = dias - 1; i >= 0; i--) fechas.push(diaLocal(new Date(ahora.getTime() - i * DIA_MS)));
-  return { fechas, desde: new Date(`${fechas[0]}T00:00:00-06:00`) };
-}
 
 // Una fila por día, con 0 en los días sin actividad. Cada métrica: Map 'YYYY-MM-DD' → cantidad
 export function armarSerie(fechas, { vistas, favoritos, mensajes }) {

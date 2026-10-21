@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PERIODOS_ESTADISTICAS } from '../../shared/utils/periodo.js';
 
 export const MOTIVOS_REPORTE = ['spam', 'ofensivo', 'informacion_falsa', 'datos_personales', 'fraude', 'otro'];
 export const ESTADOS_REPORTE = ['pendiente', 'en_revision', 'resuelto', 'descartado'];
@@ -54,9 +55,11 @@ export const resolverReporteSchema = z.object({
   message: 'Solo se oculta el comentario al resolver el reporte (estado: resuelto)', path: ['ocultar_comentario'],
 });
 
-// GET /admin/propiedades?reportadas=true&estado=publicado
+// GET /admin/propiedades?reportadas=true&estado=publicado  |  ?pausadas_por_moderacion=true
 export const listarPropiedadesAdminSchema = z.object({
   reportadas: booleano.default('true'),
+  // Las que moderación pausó y aún no aprueba (sus reportes ya quedaron resueltos, por eso no salen como reportadas)
+  pausadas_por_moderacion: booleano.default('false'),
   estado:     z.enum(['borrador', 'publicado', 'pausado', 'vendido', 'alquilado']).optional(),
   ...paginacion,
 });
@@ -96,6 +99,13 @@ export const listarAccionesSchema = z.object({
   administrador_id: id('administrador_id inválido').optional(),
   accion:           z.enum(ACCIONES).optional(),
   ...paginacion,
+});
+
+// GET /admin/estadisticas?dias=30
+export const estadisticasPlataformaSchema = z.object({
+  dias: z.coerce.number().int()
+    .refine((d) => PERIODOS_ESTADISTICAS.includes(d), 'El período debe ser de 7, 30 o 90 días')
+    .default(30),
 });
 
 // TODO: verificación de vendedores

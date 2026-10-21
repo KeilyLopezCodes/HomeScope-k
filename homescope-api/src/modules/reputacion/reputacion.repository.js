@@ -96,4 +96,13 @@ export class ReputacionRepository {
       distribucion: Object.fromEntries(porCalificacion.map((g) => [g.calificacion, g._count])),
     };
   }
+
+  // Estadísticas de la plataforma: reseñas del período y calificación promedio de todas
+  async estadisticasPlataforma(desde) {
+    const [nuevas, promedio] = await Promise.all([
+      prisma.resena.count({ where: { fecha_creacion: { gte: desde } } }),
+      prisma.resena.aggregate({ _avg: { calificacion: true }, _count: true }),
+    ]);
+    return { nuevas, total: promedio._count, promedio: promedio._avg.calificacion };
+  }
 }

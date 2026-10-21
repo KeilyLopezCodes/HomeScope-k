@@ -377,9 +377,14 @@ export class PropiedadesRepository {
 
   // Publicaciones para el administrador; con reportadas, solo las que tienen reportes abiertos,
   // las más reportadas primero
-  async listarParaModeracion({ reportadas, estado, page, pageSize }) {
+  // ids: limitar a esas propiedades (las pausadas por moderación)
+  async listarParaModeracion({ reportadas, estado, ids, page, pageSize }) {
     const abiertos = { estado: { in: ['pendiente', 'en_revision'] } };
-    const where = { ...(estado && { estado }), ...(reportadas && { reportes: { some: abiertos } }) };
+    const where = {
+      ...(estado && { estado }),
+      ...(reportadas && { reportes: { some: abiertos } }),
+      ...(ids && { id: { in: ids } }),
+    };
     const [items, total] = await prisma.$transaction([
       prisma.propiedad.findMany({
         where,
@@ -416,5 +421,28 @@ export class PropiedadesRepository {
     const cambiar = actuales.map((p) => p.id);
     if (cambiar.length) await db.propiedad.updateMany({ where: { id: { in: cambiar } }, data: { estado: hacia } });
     return cambiar;
+  }
+
+  // Estadísticas de la plataforma: propiedades por estado, publicaciones y vistas del período y por día
+  async estadisticasPlataforma(desde) {
+    const [porEstado, publicadas, vistas, publicadasPorDia, vistasPorDia] = await Promise.all([
+      prisma.propiedad.groupBy({ by: ['estado'], _count: true }),
+      prisma.propiedad.count({ where: { fecha_publicacion: { gte: desde } } }),
+      prisma.vistaPropiedad.count({ where: { fecha_vista: { gte: desde } } }),
+      prisma.$queryRaw`
+      SELECT to_char(fecha_publicacion AT TIME ZONE 'America/Guatemala', 'YYYY-MM-DD') AS fecha, count(*)::int AS total
+        FROM propiedad
+       WHERE fecha_publicacion >= ${desde}
+       GROUP BY 1`,
+      prisma.$queryRaw`
+      SELECT to_char(fecha_vista AT TIME ZONE 'America/Guatemala', 'YYYY-MM-DD') AS fecha, count(*)::int AS total
+        FROM vista_propiedad
+       WHERE fecha_vista >= ${desde}
+       GROUP BY 1`,
+    ]);
+    return {
+      porEstado: Object.fromEntries(porEstado.map((g) => [g.estado, g._count])),
+      publicadas, vistas, publicadasPorDia, vistasPorDia,
+    };
   }
 }

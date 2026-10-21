@@ -49,4 +49,9 @@ export class FavoritosRepository {
        WHERE propiedad_id = ANY(${ids}::int[]) AND fecha_agregado >= ${desde}
        GROUP BY 1`;
   }
+
+  // Estadísticas de la plataforma: favoritos agregados en el período (los que siguen guardados)
+  async contarDesde(desde) {
+    return prisma.favorito.count({ where: { fecha_agregado: { gte: desde } } });
+  }
 }

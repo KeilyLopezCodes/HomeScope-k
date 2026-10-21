@@ -181,6 +181,12 @@ export class AgendaRepository {
   async marcarRecordatorioEnviado(id) {
     return prisma.visita.update({ where: { id }, data: { recordatorio_enviado: true }, select: { id: true } });
   }
+
+  // Estadísticas de la plataforma: visitas solicitadas en el período, por su estado actual
+  async estadisticasPlataforma(desde) {
+    const porEstado = await prisma.visita.groupBy({ by: ['estado'], where: { fecha_creacion: { gte: desde } }, _count: true });
+    return Object.fromEntries(porEstado.map((g) => [g.estado, g._count]));
+  }
 }
 
 export { horaEfectiva };

@@ -216,4 +216,18 @@ export class ComunicacionRepository {
        WHERE c.propiedad_id = ANY(${ids}::int[]) AND m.fecha_envio >= ${desde}
        GROUP BY 1`;
   }
+
+  // Estadísticas de la plataforma: mensajes y conversaciones nuevas del período, mensajes por día
+  async estadisticasPlataforma(desde) {
+    const [mensajes, conversaciones, porDia] = await Promise.all([
+      prisma.mensaje.count({ where: { fecha_envio: { gte: desde } } }),
+      prisma.conversacion.count({ where: { fecha_inicio: { gte: desde } } }),
+      prisma.$queryRaw`
+      SELECT to_char(fecha_envio AT TIME ZONE 'America/Guatemala', 'YYYY-MM-DD') AS fecha, count(*)::int AS total
+        FROM mensaje
+       WHERE fecha_envio >= ${desde}
+       GROUP BY 1`,
+    ]);
+    return { mensajes, conversaciones, porDia };
+  }
 }

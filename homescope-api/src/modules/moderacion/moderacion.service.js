@@ -9,12 +9,19 @@ import { ReputacionRepository } from '../reputacion/reputacion.repository.js';
 import { PropiedadesRepository } from '../propiedades/propiedades.repository.js';
 import { IdentidadRepository } from '../identidad/identidad.repository.js';
 import { ComunicacionService } from '../comunicacion/comunicacion.service.js';
+import { ComunicacionRepository } from '../comunicacion/comunicacion.repository.js';
+import { AgendaRepository } from '../agenda/agenda.repository.js';
+import { FavoritosRepository } from '../favoritos/favoritos.repository.js';
+import { rangoPeriodo, serieDiaria } from '../../shared/utils/periodo.js';
 
 const repo           = new ModeracionRepository();
 const reputacionRepo = new ReputacionRepository();
 const propiedadesRepo = new PropiedadesRepository();
 const identidadRepo  = new IdentidadRepository();
 const comunicacion   = new ComunicacionService();
+const comunicacionRepo = new ComunicacionRepository();
+const agendaRepo     = new AgendaRepository();
+const favoritosRepo  = new FavoritosRepository();
 
 export const ROLES_ADMIN = ['administrador', 'admin'];
 const esAdmin = (roles = []) => roles.some((r) => ROLES_ADMIN.includes(String(r).toLowerCase()));
@@ -135,13 +142,18 @@ export class ModeracionService {
     return formatearReporte(await repo.buscarReporte(id));
   }
 
-  // GET /admin/propiedades?reportadas=true
-  async listarPropiedades(filtros) {
-    const { items, total } = await propiedadesRepo.listarParaModeracion(filtros);
+  // GET /admin/propiedades?reportadas=true | ?pausadas_por_moderacion=true
+  async listarPropiedades({ pausadas_por_moderacion, ...filtros }) {
+    const pausadas = await repo.idsPausadasPorModeracion();
+    const { items, total } = await propiedadesRepo.listarParaModeracion(pausadas_por_moderacion
+      ? { ...filtros, reportadas: false, estado: 'pausado', ids: pausadas }
+      : filtros);
+    const enPausa = new Set(pausadas);
     return {
       data: items.map(({ fotos, reportes, vendedor, ...p }) => ({
         ...p,
         portada:  fotos[0]?.url ?? null,
+        pausada_por_moderacion: p.estado === 'pausado' && enPausa.has(p.id),
         vendedor: { id: vendedor.id, nombre: nombreCompleto(vendedor), estado: vendedor.estado },
         ...resumenReportes(reportes),
       })),
@@ -160,6 +172,49 @@ export class ModeracionService {
         ...resumenReportes(reportes_recibidos),
       })),
       total, page: filtros.page, pageSize: filtros.pageSize,
+    };
+  }
+
+  // GET /admin/estadisticas — estadísticas generales de la plataforma en los últimos `dias` días
+  async estadisticasPlataforma({ dias }) {
+    const { fechas, desde } = rangoPeriodo(dias);
+    const [usuarios, propiedades, mensajes, visitas, resenas, favoritos, moderacion] = await Promise.all([
+      identidadRepo.estadisticasPlataforma(desde),
+      propiedadesRepo.estadisticasPlataforma(desde),
+      comunicacionRepo.estadisticasPlataforma(desde),
+      agendaRepo.estadisticasPlataforma(desde),
+      reputacionRepo.estadisticasPlataforma(desde),
+      favoritosRepo.contarDesde(desde),
+      repo.estadisticasModeracion(desde),
+    ]);
+    const suma = (obj) => Object.values(obj).reduce((s, n) => s + n, 0);
+
+    return {
+      periodo: { dias, desde: fechas[0], hasta: fechas.at(-1) },
+      usuarios: {
+        total: usuarios.total, nuevos: usuarios.nuevos,
+        por_estado: usuarios.porEstado, por_rol: usuarios.porRol,
+      },
+      propiedades: {
+        total: suma(propiedades.porEstado), publicadas: propiedades.porEstado.publicado ?? 0,
+        nuevas_publicaciones: propiedades.publicadas, por_estado: propiedades.porEstado,
+      },
+      actividad: {
+        vistas: propiedades.vistas, favoritos, mensajes: mensajes.mensajes, conversaciones: mensajes.conversaciones,
+        visitas_solicitadas: suma(visitas), visitas_por_estado: visitas,
+        resenas: resenas.nuevas,
+        calificacion_promedio: resenas.promedio == null ? null : Math.round(resenas.promedio * 10) / 10,
+      },
+      moderacion: {
+        reportes_abiertos: suma(moderacion.reportesAbiertos), reportes_por_tipo: moderacion.reportesAbiertos,
+        acciones: suma(moderacion.acciones), acciones_por_tipo: moderacion.acciones,
+      },
+      serie: serieDiaria(fechas, {
+        usuarios_nuevos:      usuarios.porDia,
+        publicaciones_nuevas: propiedades.publicadasPorDia,
+        vistas:               propiedades.vistasPorDia,
+        mensajes:             mensajes.porDia,
+      }),
     };
   }
 
