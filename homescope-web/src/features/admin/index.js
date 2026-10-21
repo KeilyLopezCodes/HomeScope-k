@@ -1,2 +1,1 @@
-// TODO: Implementar feature admin
-// Páginas: GestionUsuarios, Reportes, Verificaciones, Estadisticas
+export { default as AdminPage } from './pages/AdminPage';

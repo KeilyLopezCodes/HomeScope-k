@@ -5,6 +5,7 @@ import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage, MisPropiedad
 import { MensajesPage, AvisosTiempoReal, EstadoConexion } from '../features/mensajes';
 import { VisitasPage } from '../features/agenda';
 import { PerfilVendedorPage } from '../features/resenas';
+import { AdminPage } from '../features/admin';
 import { SocketProvider } from '../shared/realtime/SocketProvider';
 import MainLayout from '../shared/components/MainLayout';
 import ComingSoonPage from '../shared/pages/ComingSoonPage';
@@ -47,6 +48,7 @@ function RoleRoute({ children, roles }) {
 }
 
 const ROLES_VENDEDOR = ['vendedor', 'seller'];
+const ROLES_ADMIN = ['administrador', 'admin'];
 
 export default function App() {
   return (
@@ -131,11 +133,12 @@ export default function App() {
             </RoleRoute>
           </ProtectedRoute>
         } />
+        {/* Administración: solo administradores (el backend también lo exige en /admin) */}
         <Route path="/admin/*" element={
           <ProtectedRoute>
-            <PermissionRoute permiso="admin.acceso">
-              <MainLayout><ComingSoonPage /></MainLayout>
-            </PermissionRoute>
+            <RoleRoute roles={ROLES_ADMIN}>
+              <MainLayout><AdminPage /></MainLayout>
+            </RoleRoute>
           </ProtectedRoute>
         } />
 
