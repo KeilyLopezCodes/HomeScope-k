@@ -57,6 +57,12 @@ export function SocketProvider({ children }) {
     });
 
     s.on('connect_error', async (err) => {
+      // Cuenta suspendida por moderación: reintentar no sirve
+      if (err.message === 'CUENTA_SUSPENDIDA') {
+        s.disconnect();
+        setEstado('sesion_expirada');
+        return;
+      }
       if (!['TOKEN_INVALIDO', 'NO_TOKEN'].includes(err.message)) {
         // Servidor caído o sin red: Socket.io sigue reintentando por su cuenta
         setEstado(navigator.onLine ? 'reconectando' : 'sin_internet');
