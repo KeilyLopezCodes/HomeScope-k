@@ -28,4 +28,25 @@ export class FavoritosRepository {
   async existe(usuarioId, propiedadId) {
     return prisma.favorito.findUnique({ where: { usuario_id_propiedad_id: { usuario_id: usuarioId, propiedad_id: propiedadId } } });
   }
+
+  // Para el panel del vendedor. Cuenta los favoritos vigentes: si alguien quita uno, deja de contar
+  // → [{ propiedad_id, total, periodo }]
+  async contarPorPropiedades(ids, desde) {
+    return prisma.$queryRaw`
+      SELECT propiedad_id,
+             count(*)::int                                        AS total,
+             count(*) FILTER (WHERE fecha_agregado >= ${desde})::int AS periodo
+        FROM favorito
+       WHERE propiedad_id = ANY(${ids}::int[])
+       GROUP BY propiedad_id`;
+  }
+
+  // Favoritos agregados por día (hora de Guatemala) → [{ fecha: 'YYYY-MM-DD', total }]
+  async porDia(ids, desde) {
+    return prisma.$queryRaw`
+      SELECT to_char(fecha_agregado AT TIME ZONE 'America/Guatemala', 'YYYY-MM-DD') AS fecha, count(*)::int AS total
+        FROM favorito
+       WHERE propiedad_id = ANY(${ids}::int[]) AND fecha_agregado >= ${desde}
+       GROUP BY 1`;
+  }
 }

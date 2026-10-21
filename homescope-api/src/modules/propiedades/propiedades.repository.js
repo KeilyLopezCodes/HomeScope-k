@@ -328,4 +328,40 @@ export class PropiedadesRepository {
   async precioActual(id) {
     return prisma.propiedad.findUnique({ where: { id }, select: { precio: true, moneda: true, fecha_publicacion: true } });
   }
+
+  // ── Panel del vendedor ──────────────────────────────────────────────────────
+
+  // Propiedades del vendedor que ya se publicaron (sin borradores), con lo que necesitan las sugerencias
+  async listarParaEstadisticas(vendedorId) {
+    return prisma.propiedad.findMany({
+      where:   { vendedor_id: vendedorId, estado: { not: 'borrador' } },
+      orderBy: [{ fecha_publicacion: 'desc' }, { id: 'desc' }],
+      select:  {
+        id: true, titulo: true, estado: true, modalidad: true, precio: true, moneda: true,
+        descripcion: true, latitud: true, longitud: true, fecha_publicacion: true, fecha_expiracion: true,
+        fotos:  { where: { es_portada: true }, select: { url: true }, take: 1 },
+        _count: { select: { fotos: true } },
+      },
+    });
+  }
+
+  // Vistas por propiedad: total histórico y desde `desde` → [{ propiedad_id, total, periodo }]
+  async contarVistas(ids, desde) {
+    return prisma.$queryRaw`
+      SELECT propiedad_id,
+             count(*)::int                                     AS total,
+             count(*) FILTER (WHERE fecha_vista >= ${desde})::int AS periodo
+        FROM vista_propiedad
+       WHERE propiedad_id = ANY(${ids}::int[])
+       GROUP BY propiedad_id`;
+  }
+
+  // Vistas por día (hora de Guatemala) desde `desde` → [{ fecha: 'YYYY-MM-DD', total }]
+  async vistasPorDia(ids, desde) {
+    return prisma.$queryRaw`
+      SELECT to_char(fecha_vista AT TIME ZONE 'America/Guatemala', 'YYYY-MM-DD') AS fecha, count(*)::int AS total
+        FROM vista_propiedad
+       WHERE propiedad_id = ANY(${ids}::int[]) AND fecha_vista >= ${desde}
+       GROUP BY 1`;
+  }
 }

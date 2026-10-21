@@ -153,6 +153,68 @@ router.get('/mias', authenticate, controller.listarMias);
 
 /**
  * @openapi
+ * /propiedades/mias/estadisticas:
+ *   get:
+ *     tags: [Propiedades]
+ *     summary: Panel del vendedor — vistas, favoritos y mensajes de sus propiedades
+ *     description: |
+ *       Estadísticas de las propiedades del vendedor autenticado (sin borradores) en los últimos `dias` días,
+ *       hoy incluido, por día en hora de Guatemala.
+ *       - `serie`: una fila por día con las vistas, los favoritos agregados y los mensajes de interesados.
+ *       - `propiedades`: métricas del período y totales históricos de cada una, `tasa_interes`
+ *         (% de vistas que terminaron en favorito o primer mensaje), `desempeno`
+ *         (`bajo`, `normal`, `nueva`, `pausada`, `cerrada`) y `sugerencias`.
+ *       - Bajo desempeño: menos vistas por día publicada que el mínimo (5 cada 30 días) o que la mitad del
+ *         promedio diario de sus publicadas, o muchas vistas (40 cada 30 días, mínimo 25) sin ningún favorito ni mensaje. Las publicadas hace menos de 3 días no se evalúan.
+ *
+ *       Con `propiedad_id` todo (resumen, serie y lista) se limita a esa propiedad.
+ *       Solo cuentan los mensajes de los interesados, no las respuestas del vendedor.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - { in: query, name: dias, schema: { type: integer, enum: [7, 30, 90], default: 30 } }
+ *       - { in: query, name: propiedad_id, schema: { type: integer }, description: "Limitar a una propiedad" }
+ *     responses:
+ *       200:
+ *         description: Estadísticas del período.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 periodo: { type: object, example: { dias: 30, desde: "2026-09-21", hasta: "2026-10-20" } }
+ *                 resumen: { type: object, example: { vistas: 412, favoritos: 23, mensajes: 31, contactos: 14, tasa_interes: 9 } }
+ *                 serie:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     example: { fecha: "2026-10-20", vistas: 18, favoritos: 1, mensajes: 2 }
+ *                 propiedades:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:         { type: integer }
+ *                       titulo:     { type: string }
+ *                       estado:     { type: string }
+ *                       portada:    { type: string, nullable: true }
+ *                       metricas:   { type: object, example: { vistas: 3, favoritos: 0, mensajes: 0, contactos: 0, mensajes_sin_leer: 0, tasa_interes: 0 } }
+ *                       totales:    { type: object, example: { vistas: 40, favoritos: 2, mensajes: 5 } }
+ *                       desempeno:  { type: string, enum: [bajo, normal, nueva, pausada, cerrada] }
+ *                       sugerencias:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           example: { codigo: POCAS_FOTOS, nivel: consejo, mensaje: "Agrega más fotos: tiene 2 y los anuncios con 5 o más llaman más la atención." }
+ *                 promedio_vistas_dia: { type: number, description: "Promedio de vistas por día publicada de sus publicadas en el período" }
+ *       401: { description: Token requerido. }
+ *       404: { description: "propiedad_id no es una de sus propiedades publicadas." }
+ *       422: { description: Período inválido. }
+ */
+router.get('/mias/estadisticas', authenticate, controller.estadisticas);
+
+/**
+ * @openapi
  * /propiedades/vistas:
  *   get:
  *     tags: [Propiedades]

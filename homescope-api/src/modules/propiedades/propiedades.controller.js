@@ -1,7 +1,7 @@
 import { PropiedadesService } from './propiedades.service.js';
 import {
   crearPropiedadSchema, editarPropiedadSchema, ESTADOS_VALIDOS,
-  subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema, historialPreciosSchema, listarMiasSchema,
+  subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema, historialPreciosSchema, listarMiasSchema, estadisticasSchema,
 } from './propiedades.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
@@ -58,6 +58,12 @@ export async function getHistorialPrecios(req, res, next) {
 export async function listarMias(req, res, next) {
   try {
     res.json(await service.listarMias(req.user.sub, validar(listarMiasSchema, req.query)));
+  } catch (err) { next(err); }
+}
+
+export async function estadisticas(req, res, next) {
+  try {
+    res.json(await service.estadisticas(req.user.sub, validar(estadisticasSchema, req.query)));
   } catch (err) { next(err); }
 }
 

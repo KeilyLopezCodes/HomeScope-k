@@ -6,6 +6,7 @@ import { GeoIndiceRepository } from '../geo-indice/geo-indice.repository.js';
 import { ReputacionRepository } from '../reputacion/reputacion.repository.js';
 import { TRANSICIONES, FOTOS_CONFIG, VIGENCIA_DIAS, DIAS_AVISO_EXPIRACION, PESTANAS_MIAS } from './propiedades.schemas.js';
 import { IdentidadRepository } from '../identidad/identidad.repository.js';
+import { rangoPeriodo, armarSerie, evaluarDesempeno, tasaInteres, diasActivos, UMBRALES } from './propiedades.estadisticas.js';
 import { storage } from '../../shared/adapters/storage/index.js';
 import { jobs } from '../../shared/adapters/jobs.adapter.js';
 import { CALCULAR_INDICE, OPCIONES_CALCULAR_INDICE } from '../../jobs/trabajos.js';
@@ -226,6 +227,80 @@ export class PropiedadesService {
         pausado:   n('pausado'),
         cerrada:   n('vendido') + n('alquilado'),
       },
+    };
+  }
+
+  // GET /propiedades/mias/estadisticas — panel del vendedor: vistas, favoritos y mensajes de sus
+  // propiedades (sin borradores) en los últimos `dias` días, la serie diaria y sugerencias.
+  // Con propiedad_id todo se limita a esa propiedad
+  async estadisticas(vendedorId, { dias, propiedad_id }) {
+    const todas = await repo.listarParaEstadisticas(vendedorId);
+    if (propiedad_id && !todas.some((p) => p.id === propiedad_id))
+      throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada entre tus publicaciones', 404);
+
+    const { fechas, desde } = rangoPeriodo(dias);
+    const elegidas = propiedad_id ? todas.filter((p) => p.id === propiedad_id) : todas;
+    const ids      = todas.map((p) => p.id);
+    const idsSerie = elegidas.map((p) => p.id);
+
+    // Las métricas por propiedad se calculan para todas: el promedio de vistas sirve de referencia
+    const [vistas, favoritos, mensajes, vistasDia, favoritosDia, mensajesDia] = await Promise.all([
+      repo.contarVistas(ids, desde),
+      favoritosRepo.contarPorPropiedades(ids, desde),
+      comunicacionRepo.estadisticasMensajes(ids, desde),
+      repo.vistasPorDia(idsSerie, desde),
+      favoritosRepo.porDia(idsSerie, desde),
+      comunicacionRepo.mensajesPorDia(idsSerie, desde),
+    ]);
+    const porId   = (filas) => new Map(filas.map((f) => [f.propiedad_id, f]));
+    const porDia  = (filas) => new Map(filas.map((f) => [f.fecha, f.total]));
+    const [v, f, m] = [porId(vistas), porId(favoritos), porId(mensajes)];
+
+    const metricas = (id) => ({
+      vistas:            v.get(id)?.periodo ?? 0,
+      favoritos:         f.get(id)?.periodo ?? 0,
+      mensajes:          m.get(id)?.periodo ?? 0,
+      contactos:         m.get(id)?.contactos ?? 0,
+      mensajes_sin_leer: m.get(id)?.sin_leer ?? 0,
+    });
+    // Referencia: vistas por día activo de sus publicadas que ya se pueden evaluar
+    const ahora = new Date();
+    const evaluables = todas.filter((p) => p.estado === 'publicado' && p.fecha_publicacion
+      && ahora.getTime() - p.fecha_publicacion.getTime() >= UMBRALES.diasParaEvaluar * DIA_MS);
+    const promedioVistasDia = evaluables.length
+      ? evaluables.reduce((s, p) => s + metricas(p.id).vistas / diasActivos(p, dias, ahora), 0) / evaluables.length
+      : 0;
+
+    const propiedades = elegidas.map(({ fotos, _count, descripcion, latitud, longitud, ...p }) => {
+      const periodo = metricas(p.id);
+      const evaluacion = evaluarDesempeno(
+        { ...p, descripcion, latitud, longitud, total_fotos: _count.fotos },
+        periodo,
+        { dias, promedioVistasDia, ahora }
+      );
+      return {
+        ...p,
+        portada:  fotos[0]?.url ?? null,
+        metricas: { ...periodo, tasa_interes: tasaInteres(periodo) },
+        totales:  {
+          vistas:    v.get(p.id)?.total ?? 0,
+          favoritos: f.get(p.id)?.total ?? 0,
+          mensajes:  m.get(p.id)?.total ?? 0,
+        },
+        ...evaluacion,
+      };
+    });
+
+    const suma = (campo) => propiedades.reduce((s, p) => s + p.metricas[campo], 0);
+    const resumen = { vistas: suma('vistas'), favoritos: suma('favoritos'), mensajes: suma('mensajes'), contactos: suma('contactos') };
+
+    return {
+      periodo:      { dias, desde: fechas[0], hasta: fechas.at(-1) },
+      propiedad_id: propiedad_id ?? null,
+      resumen:      { ...resumen, tasa_interes: tasaInteres(resumen) },
+      serie:        armarSerie(fechas, { vistas: porDia(vistasDia), favoritos: porDia(favoritosDia), mensajes: porDia(mensajesDia) }),
+      propiedades,
+      promedio_vistas_dia: Math.round(promedioVistasDia * 10) / 10,
     };
   }
 

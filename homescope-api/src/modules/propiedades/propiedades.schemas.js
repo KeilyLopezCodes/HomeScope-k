@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PERIODOS_ESTADISTICAS } from './propiedades.estadisticas.js';
 
 const MODALIDADES = ['venta', 'alquiler'];
 const MONEDAS     = ['GTQ', 'USD'];
@@ -103,6 +104,14 @@ export const listarMiasSchema = z.object({
   }).default('todas'),
   page:     z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+// GET /propiedades/mias/estadisticas — panel del vendedor
+export const estadisticasSchema = z.object({
+  dias: z.coerce.number().int()
+    .refine((d) => PERIODOS_ESTADISTICAS.includes(d), 'El período debe ser de 7, 30 o 90 días')
+    .default(30),
+  propiedad_id: z.coerce.number().int().positive().optional(),
 });
 
 // GET /propiedades/:id/historial-precios

@@ -189,4 +189,31 @@ export class ComunicacionRepository {
     const { count } = await prisma.notificacion.updateMany({ where: { id, usuario_id: usuarioId }, data: { leida } });
     return count ? prisma.notificacion.findUnique({ where: { id }, select: NOTIFICACION_SELECT }) : null;
   }
+
+  // ── Panel del vendedor ──────────────────────────────────────────────────────
+  // Solo cuentan los mensajes de los interesados (no las respuestas del vendedor)
+
+  // → [{ propiedad_id, total, periodo, contactos (interesados que escribieron en el período), sin_leer }]
+  async estadisticasMensajes(ids, desde) {
+    return prisma.$queryRaw`
+      SELECT c.propiedad_id,
+             count(m.id)::int                                              AS total,
+             count(m.id) FILTER (WHERE m.fecha_envio >= ${desde})::int     AS periodo,
+             count(DISTINCT c.id) FILTER (WHERE m.fecha_envio >= ${desde})::int AS contactos,
+             count(m.id) FILTER (WHERE m.leido_en IS NULL)::int            AS sin_leer
+        FROM conversacion c
+        JOIN mensaje m ON m.conversacion_id = c.id AND m.remitente_id <> c.vendedor_id
+       WHERE c.propiedad_id = ANY(${ids}::int[])
+       GROUP BY c.propiedad_id`;
+  }
+
+  // Mensajes de interesados por día (hora de Guatemala) → [{ fecha: 'YYYY-MM-DD', total }]
+  async mensajesPorDia(ids, desde) {
+    return prisma.$queryRaw`
+      SELECT to_char(m.fecha_envio AT TIME ZONE 'America/Guatemala', 'YYYY-MM-DD') AS fecha, count(*)::int AS total
+        FROM conversacion c
+        JOIN mensaje m ON m.conversacion_id = c.id AND m.remitente_id <> c.vendedor_id
+       WHERE c.propiedad_id = ANY(${ids}::int[]) AND m.fecha_envio >= ${desde}
+       GROUP BY 1`;
+  }
 }

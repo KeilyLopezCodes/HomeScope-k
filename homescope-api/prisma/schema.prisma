@@ -180,6 +180,7 @@ model Favorito {
 
   @@id([usuario_id, propiedad_id])
   @@index([usuario_id])
+  @@index([propiedad_id])
   @@map("favorito")
 }
 
@@ -192,7 +193,7 @@ model VistaPropiedad {
   propiedad    Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
   usuario      Usuario?  @relation(fields: [usuario_id], references: [id], onDelete: SetNull)
 
-  @@index([propiedad_id])
+  @@index([propiedad_id, fecha_vista])
   @@index([usuario_id])
   @@map("vista_propiedad")
 }
