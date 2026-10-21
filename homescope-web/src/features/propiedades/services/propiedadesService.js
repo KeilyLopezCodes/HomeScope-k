@@ -40,3 +40,11 @@ export const renovarPropiedad = (id) =>
 
 export const eliminarPropiedad = (id) =>
   apiClient(`/api/v1/propiedades/${id}`, { method: 'DELETE' });
+
+// Panel del vendedor: vistas, favoritos y mensajes de los últimos `dias` días (7, 30 o 90),
+// de todas sus propiedades o de una → { periodo, resumen, serie, propiedades, promedio_vistas_dia }
+export const obtenerEstadisticas = ({ dias = 30, propiedadId = null } = {}) => {
+  const query = new URLSearchParams({ dias });
+  if (propiedadId) query.set('propiedad_id', propiedadId);
+  return apiClient(`/api/v1/propiedades/mias/estadisticas?${query}`);
+};

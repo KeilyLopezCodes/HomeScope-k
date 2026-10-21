@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, VerificarCorreoPage, useAuth } from '../features/auth';
 import { PerfilPage } from '../features/perfil';
-import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage, MisPropiedadesPage } from '../features/propiedades';
+import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage, MisPropiedadesPage, PanelVendedorPage } from '../features/propiedades';
 import { MensajesPage, AvisosTiempoReal, EstadoConexion } from '../features/mensajes';
 import { VisitasPage } from '../features/agenda';
 import { PerfilVendedorPage } from '../features/resenas';
@@ -126,9 +126,9 @@ export default function App() {
         } />
         <Route path="/panel-vendedor" element={
           <ProtectedRoute>
-            <PermissionRoute permiso="propiedad.listar_propias">
-              <MainLayout><ComingSoonPage /></MainLayout>
-            </PermissionRoute>
+            <RoleRoute roles={ROLES_VENDEDOR}>
+              <MainLayout><PanelVendedorPage /></MainLayout>
+            </RoleRoute>
           </ProtectedRoute>
         } />
         <Route path="/admin/*" element={
