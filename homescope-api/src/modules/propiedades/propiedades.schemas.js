@@ -106,6 +106,19 @@ export const listarMiasSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(50).default(10),
 });
 
+// POST /propiedades/:id/vista
+export const ORIGENES_VISTA = ['catalogo', 'mapa', 'busqueda'];
+export const registrarVistaSchema = z.object({
+  origen: z.enum(ORIGENES_VISTA).default('catalogo'),
+});
+
+// GET /propiedades/:id/estadisticas — una propiedad, solo su dueño
+export const estadisticasPropiedadSchema = z.object({
+  dias: z.coerce.number().int()
+    .refine((d) => PERIODOS_ESTADISTICAS.includes(d), 'El período debe ser de 7, 30 o 90 días')
+    .default(30),
+});
+
 // GET /propiedades/mias/estadisticas — panel del vendedor
 export const estadisticasSchema = z.object({
   dias: z.coerce.number().int()

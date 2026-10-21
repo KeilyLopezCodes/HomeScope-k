@@ -304,15 +304,34 @@ export class PropiedadesService {
     };
   }
 
+  // GET /propiedades/:id/estadisticas — vistas, favoritos y mensajes de una propiedad por día.
+  // Solo su dueño (403 para cualquier otro, también el administrador)
+  async estadisticasPropiedad(propiedadId, usuarioId, { dias }) {
+    const propiedad = await repo.buscarUbicacion(propiedadId);
+    if (!propiedad) throw new AppError('NO_ENCONTRADO', 'Propiedad no encontrada', 404);
+    if (propiedad.vendedor_id !== usuarioId)
+      throw new AppError('SIN_PERMISO', 'Solo el dueño puede ver las estadísticas de esta propiedad', 403);
+    if (propiedad.estado === 'borrador')
+      throw new AppError('ESTADO_INVALIDO', 'Un borrador aún no tiene estadísticas: publícalo para empezar a recibir vistas', 422);
+
+    const { periodo, serie, propiedades: [detalle], promedio_vistas_dia } =
+      await this.estadisticas(usuarioId, { dias, propiedad_id: propiedadId });
+    const { metricas, totales, desempeno, sugerencias, ...datos } = detalle;
+    return { periodo, propiedad: datos, metricas, totales, desempeno, sugerencias, serie, promedio_vistas_dia };
+  }
+
   async listarVistas(usuarioId) {
     return repo.listarVistas(usuarioId);
   }
 
-  async registrarVista(propiedadId, usuarioId, origen = 'catalogo') {
-    const propiedad = await repo.buscarPorId(propiedadId);
-    if (!propiedad || propiedad.estado !== 'publicado') return;
-    if (propiedad.vendedor.id === usuarioId) return;
+  // Cada apertura de la ficha de una publicada suma una vista, con o sin sesión (usuarioId null).
+  // No cuentan las del propio vendedor. Devuelve si se registró
+  async registrarVista(propiedadId, usuarioId = null, origen = 'catalogo') {
+    const propiedad = await repo.buscarUbicacion(propiedadId);
+    if (!propiedad || propiedad.estado !== 'publicado') return false;
+    if (usuarioId && propiedad.vendedor_id === usuarioId) return false;
     await repo.registrarVista(usuarioId, propiedadId, origen);
+    return true;
   }
 
   // ── Escritura ──────────────────────────────────────────────────────────────

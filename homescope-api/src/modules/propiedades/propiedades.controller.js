@@ -2,6 +2,7 @@ import { PropiedadesService } from './propiedades.service.js';
 import {
   crearPropiedadSchema, editarPropiedadSchema, ESTADOS_VALIDOS,
   subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema, historialPreciosSchema, listarMiasSchema, estadisticasSchema,
+  registrarVistaSchema, estadisticasPropiedadSchema,
 } from './propiedades.schemas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
@@ -67,6 +68,13 @@ export async function estadisticas(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function estadisticasPropiedad(req, res, next) {
+  try {
+    const id = parseId(req.params.id);
+    res.json(await service.estadisticasPropiedad(id, req.user.sub, validar(estadisticasPropiedadSchema, req.query)));
+  } catch (err) { next(err); }
+}
+
 export async function listarVistas(req, res, next) {
   try {
     res.json(await service.listarVistas(req.user.sub));
@@ -76,8 +84,8 @@ export async function listarVistas(req, res, next) {
 export async function registrarVista(req, res, next) {
   try {
     const id     = parseId(req.params.id);
-    const origen = req.body?.origen ?? 'catalogo';
-    await service.registrarVista(id, req.user.sub, origen);
+    const { origen } = validar(registrarVistaSchema, req.body ?? {});
+    await service.registrarVista(id, req.user?.sub ?? null, origen);
     res.status(204).end();
   } catch (err) { next(err); }
 }

@@ -418,10 +418,13 @@ router.get('/:id/historial-precios', optionalAuth, controller.getHistorialPrecio
  * /propiedades/{id}/vista:
  *   post:
  *     tags: [Propiedades]
- *     summary: Registrar vista de una propiedad
- *     description: No registra la vista si el solicitante es el propio vendedor.
- *     security:
- *       - bearerAuth: []
+ *     summary: Registrar una vista de la ficha
+ *     description: |
+ *       La ficha la llama cada vez que se abre. Cuenta con o sin sesión (los visitantes anónimos
+ *       también suman). No cuenta si quien la abre es el propio vendedor, ni si la propiedad no está
+ *       publicada; en esos casos también responde 204, sin registrar nada. Con sesión, la vista
+ *       además entra al historial del usuario (`GET /propiedades/vistas`).
+ *     security: [{}, { bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: id
@@ -439,14 +442,59 @@ router.get('/:id/historial-precios', optionalAuth, controller.getHistorialPrecio
  *                 default: catalogo
  *     responses:
  *       204:
- *         description: Vista registrada.
- *       401:
- *         description: Token requerido.
+ *         description: Recibida (registrada si corresponde).
+ *       422:
+ *         description: Origen inválido.
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/:id/vista', authenticate, controller.registrarVista);
+router.post('/:id/vista', optionalAuth, controller.registrarVista);
+
+/**
+ * @openapi
+ * /propiedades/{id}/estadisticas:
+ *   get:
+ *     tags: [Propiedades]
+ *     summary: Estadísticas de una propiedad por día (solo el dueño)
+ *     description: |
+ *       Vistas, favoritos y mensajes de interesados de la propiedad en los últimos `dias` días, por día
+ *       (hora de Guatemala), con los totales históricos, la tasa de interés, el desempeño y, si está por
+ *       debajo del umbral, `sugerencias` para mejorarla. Mismas reglas que `GET /propiedades/mias/estadisticas`.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *       - { in: query, name: dias, schema: { type: integer, enum: [7, 30, 90], default: 30 } }
+ *     responses:
+ *       200:
+ *         description: Estadísticas.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 periodo:     { type: object, example: { dias: 30, desde: "2026-09-21", hasta: "2026-10-20" } }
+ *                 propiedad:   { type: object, example: { id: 53, titulo: "Local comercial #9", estado: publicado } }
+ *                 metricas:    { type: object, example: { vistas: 2, favoritos: 0, mensajes: 0, contactos: 0, mensajes_sin_leer: 0, tasa_interes: 0 } }
+ *                 totales:     { type: object, example: { vistas: 6, favoritos: 0, mensajes: 0 } }
+ *                 desempeno:   { type: string, enum: [bajo, normal, nueva, pausada, cerrada] }
+ *                 sugerencias:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     example: { codigo: POCAS_VISTAS, nivel: alerta, mensaje: "Solo 2 vistas en los últimos 30 días, menos que tus otras propiedades." }
+ *                 serie:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     example: { fecha: "2026-10-20", vistas: 1, favoritos: 0, mensajes: 0 }
+ *       401: { description: Token requerido. }
+ *       403: { description: "SIN_PERMISO — no es el dueño." }
+ *       404: { description: La propiedad no existe. }
+ *       422: { description: "Período inválido o la propiedad es un borrador." }
+ */
+router.get('/:id/estadisticas', authenticate, controller.estadisticasPropiedad);
 
 /**
  * @openapi
