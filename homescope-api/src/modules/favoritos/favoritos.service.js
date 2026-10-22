@@ -31,7 +31,14 @@ export class FavoritosService {
       throw new AppError('PROPIEDAD_PROPIA', 'No puedes guardar tu propia publicación en favoritos', 422);
     const existe = await repo.existe(usuarioId, propiedadId);
     if (existe) throw new AppError('YA_GUARDADO', 'La propiedad ya está en favoritos', 409);
-    return repo.agregar(usuarioId, propiedadId);
+    try {
+      return await repo.agregar(usuarioId, propiedadId);
+    } catch (err) {
+      // Dos peticiones a la vez pasan la verificación anterior: el índice único (usuario_id, propiedad_id)
+      // rechaza la segunda y se responde igual que si ya estuviera guardada
+      if (err.code === 'P2002') throw new AppError('YA_GUARDADO', 'La propiedad ya está en favoritos', 409);
+      throw err;
+    }
   }
 
   async eliminar(usuarioId, propiedadId) {
