@@ -8,7 +8,9 @@ const router = Router();
  * @openapi
  * tags:
  *   name: Favoritos
- *   description: Historial — propiedades guardadas por el comprador
+ *   description: |
+ *     Propiedades guardadas por el usuario. Se guardan solo publicaciones publicadas y ajenas;
+ *     quitar una que no estaba guardada no es error (204).
  */
 
 /**
@@ -16,7 +18,10 @@ const router = Router();
  * /favoritos:
  *   get:
  *     tags: [Favoritos]
- *     summary: Historial — propiedades guardadas por el comprador autenticado
+ *     summary: Propiedades guardadas por el usuario autenticado
+ *     description: |
+ *       La más reciente primero, con su portada y su Índice de Conveniencia (sin desglose). Las que dejaron
+ *       de estar publicadas siguen en la lista con `disponible: false` y su `estado`.
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -35,6 +40,13 @@ const router = Router();
  *                   precio:       { type: number }
  *                   moneda:       { type: string }
  *                   modalidad:    { type: string }
+ *                   estado:       { type: string, example: publicado }
+ *                   disponible:   { type: boolean, description: "false si ya no está publicada" }
+ *                   portada:      { type: string, nullable: true }
+ *                   habitaciones: { type: integer, nullable: true }
+ *                   banos:        { type: number, nullable: true }
+ *                   area_m2:      { type: number, nullable: true }
+ *                   indice_conveniencia: { type: object, nullable: true, example: { puntaje: 72.5, nivel: verde } }
  *                   guardado_en:  { type: string, format: date-time }
  *       401:
  *         description: Token requerido.
@@ -60,6 +72,10 @@ router.get('/', authenticate, controller.listar);
  *     responses:
  *       201:
  *         description: Propiedad guardada.
+ *       404:
+ *         description: La propiedad no existe o no está publicada.
+ *       422:
+ *         description: "PROPIEDAD_PROPIA — no se guarda una publicación propia."
  *       409:
  *         description: La propiedad ya está en favoritos.
  *         content:

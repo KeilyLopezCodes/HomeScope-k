@@ -21,7 +21,7 @@ const PROPIEDAD_LISTA = {
   id: true, titulo: true, direccion: true, precio: true, moneda: true,
   modalidad: true, estado: true, fecha_creacion: true,
   zona: true, municipio: true, departamento: true,
-  habitaciones: true, banos: true, area_m2: true, fecha_publicacion: true,
+  habitaciones: true, banos: true, area_m2: true, parqueos: true, fecha_publicacion: true,
   tipo_propiedad: { select: { nombre: true } },
   vendedor:       { select: VENDEDOR_PUBLICO },
   fotos: {

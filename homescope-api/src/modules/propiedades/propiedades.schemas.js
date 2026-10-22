@@ -51,6 +51,8 @@ export const ORDENES = ['relevancia', 'recientes', 'precio_asc', 'precio_desc', 
 const opcional = (schema) => z.preprocess((v) => (v === '' || v === null ? undefined : v), schema.optional());
 
 // Sin parámetros es el catálogo completo; con ellos, la búsqueda (RF-18, HU-20). Siempre paginado (RNF-02)
+export const MAX_COMPARAR = 4;
+
 export const listarPropiedadesSchema = z.object({
   // Texto libre: título, descripción, dirección, zona, municipio y departamento, sin distinguir tildes
   q:                opcional(z.string().trim().min(2, 'Escribe al menos 2 caracteres').max(100)),
@@ -69,6 +71,11 @@ export const listarPropiedadesSchema = z.object({
   // Puntaje mínimo del Índice de Conveniencia vigente (excluye las propiedades sin índice)
   indice_min:       opcional(z.coerce.number().min(0).max(100)),
   orden:            opcional(z.enum(ORDENES)),
+  // ?ids=12,15,40: esas propiedades (máximo 4, comparador), en ese orden y con el índice desglosado
+  ids:              opcional(z.string()
+    .transform((v) => [...new Set(v.split(',').map((x) => Number(x.trim())).filter((x) => x))])
+    .refine((lista) => lista.length >= 1 && lista.every((x) => Number.isInteger(x) && x > 0), { message: 'ids debe ser una lista de ids separados por coma' })
+    .refine((lista) => lista.length <= MAX_COMPARAR, { message: `Se comparan hasta ${MAX_COMPARAR} propiedades` })),
   page:             z.coerce.number().int().min(1).default(1),
   pageSize:         z.coerce.number().int().min(1).max(50).default(20),
 })

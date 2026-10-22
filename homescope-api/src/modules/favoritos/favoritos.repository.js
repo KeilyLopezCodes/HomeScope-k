@@ -2,12 +2,15 @@ import { prisma } from '../../config/prisma.js';
 
 const PROPIEDAD_SELECT = {
   id: true, titulo: true, direccion: true, precio: true, moneda: true,
-  modalidad: true,
+  modalidad: true, estado: true, zona: true, municipio: true, departamento: true,
+  habitaciones: true, banos: true, area_m2: true,
   tipo_propiedad: { select: { nombre: true } },
   vendedor: { select: { id: true, nombre: true } },
+  fotos:    { where: { es_portada: true }, select: { url: true }, take: 1 },
 };
 
 export class FavoritosRepository {
+  // Las guardadas por el usuario, la más reciente primero (también las que ya no están publicadas)
   async listar(usuarioId) {
     const rows = await prisma.favorito.findMany({
       where: { usuario_id: usuarioId },

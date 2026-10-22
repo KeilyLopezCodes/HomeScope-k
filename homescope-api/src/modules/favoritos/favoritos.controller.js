@@ -20,6 +20,7 @@ export async function agregar(req, res, next) {
 export async function eliminar(req, res, next) {
   try {
     const propiedadId = parseInt(req.params.propiedadId);
+    if (isNaN(propiedadId)) return res.status(400).json({ error: { code: 'ID_INVALIDO', message: 'ID inválido' } });
     await service.eliminar(req.user.sub, propiedadId);
     res.status(204).end();
   } catch (err) { next(err); }

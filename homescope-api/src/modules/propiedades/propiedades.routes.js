@@ -31,6 +31,9 @@ const router = Router();
  *         incluyen propiedades publicadas en esa moneda.
  *       - `indice_min` excluye las propiedades que aún no tienen índice calculado.
  *       - Sin `orden`: por relevancia si hay `q`, si no las más recientes.
+ *       - `ids` (comparador): devuelve esas propiedades, hasta 4, en el orden pedido y con el índice
+ *         **desglosado** por categoría (`indice_conveniencia.subpuntajes`). Ignora los demás filtros.
+ *         Las que ya no están publicadas no vienen y se listan en `no_disponibles`.
  *     parameters:
  *       - { in: query, name: q, description: "Texto a buscar (2 a 100 caracteres)", schema: { type: string, example: "casa jardin" } }
  *       - { in: query, name: modalidad, schema: { type: string, enum: [venta, alquiler] } }
@@ -41,6 +44,7 @@ const router = Router();
  *       - { in: query, name: habitaciones_min, schema: { type: integer, minimum: 0, maximum: 20, example: 2 } }
  *       - { in: query, name: indice_min, description: "Puntaje mínimo del Índice de Conveniencia (0–100)", schema: { type: number, minimum: 0, maximum: 100, example: 70 } }
  *       - { in: query, name: orden, schema: { type: string, enum: [relevancia, recientes, precio_asc, precio_desc, indice_desc] } }
+ *       - { in: query, name: ids, description: "Comparador: hasta 4 ids separados por coma", schema: { type: string, example: "45,46,48" } }
  *       - { in: query, name: page, schema: { type: integer, default: 1, minimum: 1 } }
  *       - { in: query, name: pageSize, schema: { type: integer, default: 20, minimum: 1, maximum: 50 } }
  *     responses:

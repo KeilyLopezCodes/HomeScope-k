@@ -66,6 +66,18 @@ export class PropiedadesService {
 
   // GET /propiedades: catálogo de publicadas; con `q` y filtros es la búsqueda combinada
   async listar(filtros) {
+    // ?ids=: el comparador pide esas propiedades con el índice desglosado. Las que ya no están
+    // publicadas no vienen y se informan en no_disponibles
+    if (filtros.ids) {
+      const data = await this.resumenesPorIds(filtros.ids, { desglose: true });
+      const vienen = new Set(data.map((p) => p.id));
+      return {
+        data, total: data.length, page: 1, pageSize: filtros.ids.length,
+        filtros: { ids: filtros.ids },
+        no_disponibles: filtros.ids.filter((id) => !vienen.has(id)),
+      };
+    }
+
     const { ids, total } = await repo.buscarIds(filtros);
     const { page, pageSize, ...aplicados } = filtros;
     return {
@@ -80,10 +92,10 @@ export class PropiedadesService {
   }
 
   // Tarjetas con su índice para una lista de ids, en el mismo orden (resultados de búsqueda)
-  async resumenesPorIds(ids) {
+  async resumenesPorIds(ids, { desglose = false } = {}) {
     const [items, indices] = await Promise.all([
       repo.listarPorIds(ids),
-      geoIndiceRepo.indicesVigentes(ids),
+      geoIndiceRepo.indicesVigentes(ids, { desglose }),
     ]);
     const porId = new Map(items.map((p) => [p.id, p]));
     return ids
