@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarDays, Flag, Heart, MessageCircle, Pencil, Share2 } from 'lucide-react';
 import { Button, useToast } from '../../../shared/components/ui';
 import { useAuth } from '../../auth';
-import { useToggleFavorito } from '../../favoritos';
+import { BotonComparar, useToggleFavorito } from '../../favoritos';
 import { ContactarVendedorModal } from '../../mensajes';
 import { SolicitarVisitaModal } from '../../agenda';
 
@@ -115,6 +115,9 @@ export default function AccionesPropiedad({ propiedad, queryKey }) {
       </Button>
       {agendando && <SolicitarVisitaModal propiedad={propiedad} onCerrar={() => setAgendando(false)} />}
       <BotonFavorito propiedad={propiedad} queryKey={queryKey} />
+      {propiedad.estado === 'publicado' && (
+        <div className="flex justify-center"><BotonComparar propiedad={propiedad} variante="texto" /></div>
+      )}
       <div className="flex flex-wrap justify-center gap-1">
         {botonCompartir}
         <Button variant="text" size="sm" onClick={() => accionPendiente('Reportar publicaciones')}>

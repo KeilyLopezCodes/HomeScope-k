@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, MapPin } from 'lucide-react';
 import { Badge } from '../../../shared/components/ui';
 import { Semaforo } from '../../indice';
+import { BotonComparar, BotonFavoritoTarjeta } from '../../favoritos';
 import { MODALIDAD, formatearPrecio, ubicacionResumida } from '../utils/formato';
 
 // "3 hab · 2 baños · 180 m²", solo con los datos que tenga la propiedad
@@ -13,17 +14,19 @@ function caracteristicas({ habitaciones, banos, area_m2 }) {
   ].filter(Boolean);
 }
 
-export default function PropiedadCard({ propiedad }) {
+// acciones: corazón de favoritos y botón del comparador sobre la foto (fuera del enlace)
+export default function PropiedadCard({ propiedad, acciones = true }) {
   const portada   = propiedad.fotos?.[0]?.url;
   const modalidad = MODALIDAD[propiedad.modalidad];
   // La ficha usa `desde` para que "Volver" regrese a la misma página del catálogo
   const { pathname, search } = useLocation();
 
   return (
+    <div className="relative h-full">
     <Link
       to={`/propiedades/${propiedad.id}`}
       state={{ desde: pathname + search }}
-      className="group flex flex-col overflow-hidden rounded-lg border border-secondary-200 bg-white shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+      className="group flex h-full flex-col overflow-hidden rounded-lg border border-secondary-200 bg-white shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-secondary-100">
         {portada ? (
@@ -66,5 +69,12 @@ export default function PropiedadCard({ propiedad }) {
         </div>
       </div>
     </Link>
+    {acciones && (
+      <div className="absolute right-2 top-2 flex gap-1.5">
+        <BotonComparar propiedad={propiedad} />
+        <BotonFavoritoTarjeta propiedad={propiedad} />
+      </div>
+    )}
+    </div>
   );
 }

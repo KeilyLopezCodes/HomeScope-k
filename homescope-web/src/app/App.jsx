@@ -6,6 +6,7 @@ import { MensajesPage, AvisosTiempoReal, EstadoConexion } from '../features/mens
 import { VisitasPage } from '../features/agenda';
 import { PerfilVendedorPage } from '../features/resenas';
 import { AdminPage } from '../features/admin';
+import { FavoritosPage, CompararPage, BarraComparador } from '../features/favoritos';
 import { SocketProvider } from '../shared/realtime/SocketProvider';
 import MainLayout from '../shared/components/MainLayout';
 import ComingSoonPage from '../shared/pages/ComingSoonPage';
@@ -78,6 +79,8 @@ export default function App() {
         <Route path="/propiedades"      element={<MainLayout><CatalogoPage /></MainLayout>} />
         <Route path="/propiedades/:id" element={<MainLayout><PropiedadDetallePage /></MainLayout>} />
         <Route path="/vendedores/:id"  element={<MainLayout><PerfilVendedorPage /></MainLayout>} />
+        {/* El comparador no requiere sesión: la selección se guarda en el navegador */}
+        <Route path="/comparar"         element={<MainLayout><CompararPage /></MainLayout>} />
         <Route path="/mapa"             element={<MainLayout><ComingSoonPage /></MainLayout>} />
 
         {/* Protegidas — cualquier usuario autenticado */}
@@ -85,10 +88,7 @@ export default function App() {
           <ProtectedRoute><MainLayout><PerfilPage /></MainLayout></ProtectedRoute>
         } />
         <Route path="/favoritos" element={
-          <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
-        } />
-        <Route path="/comparar" element={
-          <ProtectedRoute><MainLayout><ComingSoonPage /></MainLayout></ProtectedRoute>
+          <ProtectedRoute><MainLayout><FavoritosPage /></MainLayout></ProtectedRoute>
         } />
         <Route path="/mensajes" element={
           <ProtectedRoute><MainLayout><MensajesPage /></MainLayout></ProtectedRoute>
@@ -150,6 +150,8 @@ export default function App() {
         {/* 404 */}
         <Route path="*" element={<MainLayout><NotFoundPage /></MainLayout>} />
       </Routes>
+      {/* Propiedades elegidas para comparar, visible en toda la app (después de la página: su espacio va al final) */}
+      <BarraComparador />
       </SocketProvider>
     </AuthProvider>
   );
