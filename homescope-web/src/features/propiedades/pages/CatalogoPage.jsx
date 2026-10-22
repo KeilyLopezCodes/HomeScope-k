@@ -2,6 +2,9 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, AlertCircle, Map as IconoMapa, SearchX } from 'lucide-react';
 import PropiedadCard from '../components/PropiedadCard';
+import CarruselDestacadas from '../components/CarruselDestacadas';
+import LogoHomeScope from '../../../shared/components/LogoHomeScope';
+import { useAuth } from '../../auth';
 import { useCatalogoPropiedades } from '../hooks/useCatalogoPropiedades';
 import { Button, EmptyState, Pagination, Spinner } from '../../../shared/components/ui';
 import { BarraBusqueda, FiltrosActivos, ORDENES, PanelFiltros, escribirFiltros, useFiltrosCatalogo } from '../../busqueda';
@@ -11,6 +14,7 @@ const PAGE_SIZE = 12;
 export default function CatalogoPage() {
   // Búsqueda, filtros y página viven en la URL: se pueden compartir y funciona el botón Atrás
   const { filtros, page, hayFiltros, actualizar, quitar, limpiar, irAPagina } = useFiltrosCatalogo();
+  const { user } = useAuth();
 
   const { data, isPending, isError, error, refetch, isPlaceholderData, isFetching } =
     useCatalogoPropiedades({ page, pageSize: PAGE_SIZE, filtros });
@@ -35,10 +39,18 @@ export default function CatalogoPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-secondary-900">Propiedades</h1>
-          <p className="text-sm text-secondary-500">Explora la oferta disponible en venta y alquiler</p>
+      {/* Bienvenida con el logo; con sesión, saluda por el nombre */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <LogoHomeScope tamano="md" />
+          <div>
+            <h1 className="text-2xl font-bold text-secondary-900 sm:text-3xl">
+              {user?.nombre ? `¡Hola, ${user.nombre.split(' ')[0]}! ` : ''}Te damos la bienvenida a <span className="text-primary-700">HomeScope</span>
+            </h1>
+            <p className="text-sm text-secondary-500 sm:text-base">
+              Encuentra casas, apartamentos y terrenos en venta o alquiler, y mira de un vistazo qué tan conveniente es su ubicación.
+            </p>
+          </div>
         </div>
         {/* La misma búsqueda sobre el mapa: los filtros activos se conservan */}
         <Link
@@ -48,6 +60,9 @@ export default function CatalogoPage() {
           <IconoMapa size={16} aria-hidden="true" /> Ver en el mapa
         </Link>
       </div>
+
+      {/* Consulta propia: no retrasa la lista del catálogo, que se pide en paralelo */}
+      <CarruselDestacadas />
 
       <div className="mb-6 space-y-4">
         <BarraBusqueda valor={filtros.q ?? ''} onBuscar={(q) => actualizar({ q })} />

@@ -55,3 +55,7 @@ export const reportarPublicacion = (propiedadId, { motivo, descripcion }) =>
     method: 'POST',
     body: JSON.stringify({ tipo_objetivo: 'propiedad', propiedad_id: propiedadId, motivo, ...(descripcion && { descripcion }) }),
   });
+
+// Carrusel del catálogo: hasta 6 propiedades (3 recientes y 3 populares) con la foto ya optimizada
+// → { data: [{ motivo, id, titulo, precio, moneda, modalidad, ubicacion, foto_url, favoritos? }] }
+export const obtenerDestacadas = () => apiClient('/api/v1/propiedades/destacadas');
