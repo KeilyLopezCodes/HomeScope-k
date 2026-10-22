@@ -161,6 +161,56 @@ router.get('/mias', authenticate, controller.listarMias);
 
 /**
  * @openapi
+ * /propiedades/destacadas:
+ *   get:
+ *     tags: [Propiedades]
+ *     summary: Propiedades destacadas del carrusel (pública)
+ *     description: |
+ *       Hasta 6 propiedades en una sola respuesta, sin sesión:
+ *       1. Las **3 publicadas más recientemente** (`motivo: reciente`), por fecha de publicación descendente.
+ *       2. Las **3 con más favoritos** (`motivo: popular`); los empates se resuelven por la publicación más reciente.
+ *          Si una ya está entre las recientes se omite y se toma la siguiente del ranking. Las que no tienen
+ *          favoritos no cuentan como populares, así que puede haber menos de 3.
+ *
+ *       Nunca incluye pausadas, borradores, vendidas, alquiladas ni propiedades sin foto de portada.
+ *       `foto_url` viene optimizada para el carrusel: formato y calidad automáticos y ancho máximo de 1600 px
+ *       (transformación de Cloudinary; con el almacenamiento local, `?w=1600&f=auto&q=auto` sobre `/uploads`).
+ *       Las URLs de otros orígenes se devuelven tal cual.
+ *
+ *       La respuesta se cachea 5 minutos (en el servidor y con `Cache-Control: public, max-age=300`):
+ *       los cambios pueden tardar hasta 5 minutos en verse.
+ *     responses:
+ *       200:
+ *         description: Propiedades destacadas.
+ *         headers:
+ *           Cache-Control: { schema: { type: string, example: "public, max-age=300" } }
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   maxItems: 6
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       motivo:    { type: string, enum: [reciente, popular] }
+ *                       id:        { type: integer, example: 45 }
+ *                       titulo:    { type: string, example: "Casa familiar #1" }
+ *                       precio:    { type: string, example: "2500" }
+ *                       moneda:    { type: string, example: GTQ }
+ *                       modalidad: { type: string, enum: [venta, alquiler] }
+ *                       ubicacion: { type: string, example: "Zona 1, Jalapa, Jalapa" }
+ *                       foto_url:  { type: string, example: "https://res.cloudinary.com/homescope/image/upload/f_auto,q_auto,c_limit,w_1600/v1/propiedades/45/portada.jpg" }
+ *                       favoritos: { type: integer, description: "Solo en las populares", example: 7 }
+ *                 total:       { type: integer, example: 6 }
+ *                 generado_en: { type: string, format: date-time, description: "Cuándo se calculó (puede venir de la caché)" }
+ */
+router.get('/destacadas', controller.getDestacadas);
+
+/**
+ * @openapi
  * /propiedades/mias/estadisticas:
  *   get:
  *     tags: [Propiedades]

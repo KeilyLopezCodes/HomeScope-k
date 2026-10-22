@@ -40,6 +40,14 @@ export class LocalStorageStrategy extends StoragePort {
     }
   }
 
+  // Las imágenes de /uploads se optimizan al servirlas (middleware imagenesOptimizadas)
+  urlOptimizada(url, { anchoMaximo }) {
+    if (!url?.startsWith(`${this.baseUrl}/uploads/`)) return url;
+    const u = new URL(url);
+    u.search = new URLSearchParams({ w: String(anchoMaximo), f: 'auto', q: 'auto' }).toString();
+    return u.toString();
+  }
+
   async subirPrivado(archivo, carpeta) {
     const ext      = EXTENSIONES[archivo.mimetype] ?? path.extname(archivo.originalname).toLowerCase();
     const publicId = path.posix.join(carpeta, `${crypto.randomUUID()}${ext}`);

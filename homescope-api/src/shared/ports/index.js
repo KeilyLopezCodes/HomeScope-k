@@ -28,6 +28,10 @@ export class StoragePort {
   /** @returns {Promise<{ buffer: Buffer, mimetype: string }>} */
   async leerPrivado(_publicId) { throw new Error('Not implemented'); }
   async eliminarPrivado(_publicId) { throw new Error('Not implemented'); }
+
+  // URL de una imagen optimizada para mostrarla (formato y calidad automáticos, ancho máximo).
+  // Las URLs que no son de este almacenamiento se devuelven sin cambios
+  urlOptimizada(url, _opciones) { return url; }
 }
 
 // MailPort — interfaz para SMTP

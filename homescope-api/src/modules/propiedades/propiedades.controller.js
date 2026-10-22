@@ -1,4 +1,7 @@
 import { PropiedadesService } from './propiedades.service.js';
+import { DestacadasService, DESTACADAS } from './propiedades.destacadas.js';
+import { PropiedadesRepository } from './propiedades.repository.js';
+import { storage } from '../../shared/adapters/storage/index.js';
 import {
   crearPropiedadSchema, editarPropiedadSchema, ESTADOS_VALIDOS,
   subirFotosSchema, ordenFotosSchema, listarPropiedadesSchema, historialPreciosSchema, listarMiasSchema, estadisticasSchema,
@@ -7,6 +10,7 @@ import {
 import { AppError } from '../../shared/errors/AppError.js';
 
 const service = new PropiedadesService();
+const destacadas = new DestacadasService({ repo: new PropiedadesRepository(), storage });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -55,6 +59,13 @@ export async function getHistorialPrecios(req, res, next) {
 }
 
 // ── Historial del usuario autenticado ─────────────────────────────────────
+
+// Pública. La respuesta se cachea 5 minutos en el servidor y también en el navegador o el proxy
+export async function getDestacadas(_req, res, next) {
+  try {
+    res.set('Cache-Control', `public, max-age=${DESTACADAS.cacheMs / 1000}`).json(await destacadas.obtener());
+  } catch (err) { next(err); }
+}
 
 export async function listarMias(req, res, next) {
   try {

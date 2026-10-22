@@ -32,6 +32,13 @@ const PROPIEDAD_LISTA = {
   },
 };
 
+// Lo que necesita una tarjeta del carrusel de destacadas
+const TARJETA_DESTACADA = {
+  id: true, titulo: true, precio: true, moneda: true, modalidad: true,
+  zona: true, municipio: true, departamento: true, direccion: true,
+  fotos: { where: { es_portada: true }, select: { url: true }, take: 1 },
+};
+
 export class PropiedadesRepository {
   // ── Lectura ────────────────────────────────────────────────────────────────
 
@@ -447,5 +454,39 @@ export class PropiedadesRepository {
       porEstado: Object.fromEntries(porEstado.map((g) => [g.estado, g._count])),
       publicadas, vistas, publicadasPorDia, vistasPorDia,
     };
+  }
+
+  // ── Destacadas (carrusel) ───────────────────────────────────────────────────
+  // Solo publicadas con foto de portada: nunca pausadas, borradores, vendidas ni alquiladas
+
+  async recientesConPortada(limite) {
+    return prisma.propiedad.findMany({
+      where:   { estado: 'publicado', fotos: { some: { es_portada: true } } },
+      orderBy: [{ fecha_publicacion: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
+      take:    limite,
+      select:  TARJETA_DESTACADA,
+    });
+  }
+
+  // Ranking por favoritos en UNA consulta agregada → [{ id, favoritos }]. Empates: la publicada más
+  // recientemente primero. Las que no tienen favoritos no aparecen (JOIN con favorito)
+  async rankingFavoritos(limite) {
+    return prisma.$queryRaw`
+      SELECT p.id, count(*)::int AS favoritos
+        FROM favorito f
+        JOIN propiedad p ON p.id = f.propiedad_id
+       WHERE p.estado = 'publicado'
+         AND EXISTS (SELECT 1 FROM foto_propiedad fp WHERE fp.propiedad_id = p.id AND fp.es_portada)
+       GROUP BY p.id, p.fecha_publicacion
+       ORDER BY favoritos DESC, p.fecha_publicacion DESC NULLS LAST, p.id DESC
+       LIMIT ${limite}`;
+  }
+
+  async tarjetasDestacadas(ids) {
+    if (!ids.length) return [];
+    return prisma.propiedad.findMany({
+      where:  { id: { in: ids }, estado: 'publicado', fotos: { some: { es_portada: true } } },
+      select: TARJETA_DESTACADA,
+    });
   }
 }

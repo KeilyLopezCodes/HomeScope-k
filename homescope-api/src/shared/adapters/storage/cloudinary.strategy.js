@@ -21,6 +21,13 @@ export class CloudinaryStorageStrategy extends StoragePort {
     throw new Error('CloudinaryStorageStrategy aún no está implementada');
   }
 
+  // Transformación de entrega en la URL: https://res.cloudinary.com/<nube>/image/upload/f_auto,q_auto,c_limit,w_1600/…
+  // c_limit: reduce al ancho máximo sin agrandar las imágenes más pequeñas
+  urlOptimizada(url, { anchoMaximo }) {
+    if (!/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url ?? '')) return url;
+    return url.replace('/image/upload/', `/image/upload/f_auto,q_auto,c_limit,w_${anchoMaximo}/`);
+  }
+
   async subirPrivado(_archivo, _carpeta) {
     throw new Error('CloudinaryStorageStrategy aún no está implementada');
   }
