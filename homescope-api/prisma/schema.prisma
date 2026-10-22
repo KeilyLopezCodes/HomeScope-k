@@ -137,6 +137,7 @@ model Propiedad {
   reportes           Reporte[]
   acciones_moderacion AccionModeracion[]
 
+  @@index([latitud, longitud])
   @@index([vendedor_id])
   @@index([vendedor_id, estado])
   @@index([estado, tipo_propiedad_id, modalidad, precio])
