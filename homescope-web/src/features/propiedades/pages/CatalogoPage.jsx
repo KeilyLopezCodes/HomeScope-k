@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { Building2, AlertCircle, SearchX } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Building2, AlertCircle, Map as IconoMapa, SearchX } from 'lucide-react';
 import PropiedadCard from '../components/PropiedadCard';
 import { useCatalogoPropiedades } from '../hooks/useCatalogoPropiedades';
 import { Button, EmptyState, Pagination, Spinner } from '../../../shared/components/ui';
-import { BarraBusqueda, FiltrosActivos, ORDENES, PanelFiltros, useFiltrosCatalogo } from '../../busqueda';
+import { BarraBusqueda, FiltrosActivos, ORDENES, PanelFiltros, escribirFiltros, useFiltrosCatalogo } from '../../busqueda';
 
 const PAGE_SIZE = 12;
 
@@ -34,9 +35,18 @@ export default function CatalogoPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-secondary-900">Propiedades</h1>
-        <p className="text-sm text-secondary-500">Explora la oferta disponible en venta y alquiler</p>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-secondary-900">Propiedades</h1>
+          <p className="text-sm text-secondary-500">Explora la oferta disponible en venta y alquiler</p>
+        </div>
+        {/* La misma búsqueda sobre el mapa: los filtros activos se conservan */}
+        <Link
+          to={`/mapa${escribirFiltros(filtros).toString() ? `?${escribirFiltros(filtros)}` : ''}`}
+          className="inline-flex items-center gap-1.5 rounded bg-secondary-100 px-3 py-1.5 text-sm font-medium text-secondary-800 hover:bg-secondary-200"
+        >
+          <IconoMapa size={16} aria-hidden="true" /> Ver en el mapa
+        </Link>
       </div>
 
       <div className="mb-6 space-y-4">

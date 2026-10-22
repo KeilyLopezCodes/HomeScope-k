@@ -8,9 +8,9 @@ import { PerfilVendedorPage } from '../features/resenas';
 import { AdminPage } from '../features/admin';
 import { FavoritosPage, CompararPage, BarraComparador } from '../features/favoritos';
 import { VerificacionPage } from '../features/verificacion';
+import { BusquedaMapaPage } from '../features/mapa';
 import { SocketProvider } from '../shared/realtime/SocketProvider';
 import MainLayout from '../shared/components/MainLayout';
-import ComingSoonPage from '../shared/pages/ComingSoonPage';
 import NotFoundPage from '../shared/pages/NotFoundPage';
 import ForbiddenPage from '../shared/pages/ForbiddenPage';
 import ComponentesPage from '../shared/pages/dev/ComponentesPage';
@@ -82,7 +82,7 @@ export default function App() {
         <Route path="/vendedores/:id"  element={<MainLayout><PerfilVendedorPage /></MainLayout>} />
         {/* El comparador no requiere sesión: la selección se guarda en el navegador */}
         <Route path="/comparar"         element={<MainLayout><CompararPage /></MainLayout>} />
-        <Route path="/mapa"             element={<MainLayout><ComingSoonPage /></MainLayout>} />
+        <Route path="/mapa"             element={<MainLayout><BusquedaMapaPage /></MainLayout>} />
 
         {/* Protegidas — cualquier usuario autenticado */}
         <Route path="/perfil" element={
