@@ -325,7 +325,7 @@ model Mensaje {
 model Notificacion {
   id              BigInt   @id @default(autoincrement())
   usuario_id      Int
-  tipo            String   @db.VarChar(30) // mensaje|visita|resena|expiracion|verificacion|sistema
+  tipo            String   @db.VarChar(30) // mensaje|visita|resena|expiracion|verificacion|sistema|moderacion
   titulo          String   @db.VarChar(150)
   contenido       String   @db.VarChar(500)
   referencia_tipo String?  @db.VarChar(30) // p. ej. 'conversacion'
