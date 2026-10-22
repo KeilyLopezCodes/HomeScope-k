@@ -20,8 +20,11 @@ export async function registro(req, res, next) {
 
 export async function verificarCorreo(req, res, next) {
   try {
-    await service.verificarCorreo(req.query.token);
-    res.json({ message: 'Correo verificado correctamente.' });
+    const { yaVerificado } = await service.verificarCorreo(req.query.token);
+    res.json({
+      message: yaVerificado ? 'Tu correo ya estaba verificado.' : 'Correo verificado correctamente.',
+      ya_verificado: yaVerificado,
+    });
   } catch (err) { next(err); }
 }
 

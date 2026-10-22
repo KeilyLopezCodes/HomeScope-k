@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider, RegisterPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, VerificarCorreoPage, useAuth } from '../features/auth';
 import { PerfilPage } from '../features/perfil';
 import { PublicarPropiedadPage, CatalogoPage, PropiedadDetallePage, MisPropiedadesPage, PanelVendedorPage } from '../features/propiedades';
@@ -14,6 +14,13 @@ import MainLayout from '../shared/components/MainLayout';
 import NotFoundPage from '../shared/pages/NotFoundPage';
 import ForbiddenPage from '../shared/pages/ForbiddenPage';
 import ComponentesPage from '../shared/pages/dev/ComponentesPage';
+
+// Enlaces antiguos /recuperar/:token → /recuperar-contrasena/:token conservando el token
+// (Navigate no reemplaza los parámetros de la ruta: hay que armar la URL con el valor real)
+function RedirigirRecuperacion() {
+  const { token } = useParams();
+  return <Navigate to={`/recuperar-contrasena/${encodeURIComponent(token)}`} replace />;
+}
 
 // Redirige a /login si no hay sesión; conserva la ruta de origen en location.state.from
 function ProtectedRoute({ children }) {
@@ -67,7 +74,7 @@ export default function App() {
         <Route path="/recuperar-contrasena/:token" element={<ResetPasswordPage />} />
         {/* alias legacy */}
         <Route path="/recuperar"                element={<Navigate to="/recuperar-contrasena" replace />} />
-        <Route path="/recuperar/:token"         element={<Navigate to="/recuperar-contrasena/:token" replace />} />
+        <Route path="/recuperar/:token"         element={<RedirigirRecuperacion />} />
         <Route path="/verificar-correo"         element={<VerificarCorreoPage />} />
 
         {/* Páginas de error */}

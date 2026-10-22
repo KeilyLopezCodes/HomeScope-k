@@ -81,7 +81,9 @@ router.post('/registro', controller.registro);
  *   get:
  *     tags: [Identidad]
  *     summary: Verificar correo electrónico
- *     description: Activa la cuenta usando el token enviado por correo. El token es válido por 24 horas.
+ *     description: |
+ *       Activa la cuenta usando el token enviado por correo. El token es válido por 24 horas.
+ *       Es idempotente: si el enlace ya se usó y la cuenta está verificada responde 200 con `ya_verificado: true`.
  *     parameters:
  *       - in: query
  *         name: token
@@ -90,7 +92,14 @@ router.post('/registro', controller.registro);
  *         description: Token de verificación recibido por correo
  *     responses:
  *       200:
- *         description: Correo verificado correctamente.
+ *         description: Correo verificado (o ya lo estaba).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:       { type: string }
+ *                 ya_verificado: { type: boolean }
  *       400:
  *         description: Token inválido o expirado.
  *         content:

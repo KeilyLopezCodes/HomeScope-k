@@ -95,8 +95,13 @@ export class IdentidadService {
     return { id: usuario.id, nombre: usuario.nombre, apellido: usuario.apellido, email: usuario.email };
   }
 
+  // Idempotente: abrir de nuevo un enlace ya usado (doble clic, recargar la página, el doble efecto de
+  // React en desarrollo) no es un error si la cuenta ya quedó verificada. Devuelve { yaVerificado }
   async verificarCorreo(tokenPlano) {
-    const registro = await repo.buscarToken(hashToken(tokenPlano));
+    const registro = await repo.buscarToken(hashToken(tokenPlano ?? ''));
+
+    if (registro?.tipo === 'verificacion' && registro.usado && registro.usuario?.correo_verificado)
+      return { yaVerificado: true };
 
     if (!registro || registro.tipo !== 'verificacion' || registro.usado)
       throw new AppError('TOKEN_INVALIDO', 'El enlace no es válido', 400);
@@ -109,6 +114,7 @@ export class IdentidadService {
       correo_verificado: true,
       estado: 'activo',
     });
+    return { yaVerificado: false };
   }
 
   async login({ email, password, recordar }) {
@@ -216,7 +222,7 @@ export class IdentidadService {
       expiraEn: expiracionDesde(RECUPERACION_TTL_MS),
     });
 
-    const url = `${env.CORS_ORIGIN}/recuperar/${tokenPlano}`;
+    const url = `${env.CORS_ORIGIN}/recuperar-contrasena/${tokenPlano}`;
     await mailAdapter.send(
       email,
       'Recupera tu contraseña — HomeScope',
