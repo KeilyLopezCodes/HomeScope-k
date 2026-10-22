@@ -48,3 +48,10 @@ export const obtenerEstadisticas = ({ dias = 30, propiedadId = null } = {}) => {
   if (propiedadId) query.set('propiedad_id', propiedadId);
   return apiClient(`/api/v1/propiedades/mias/estadisticas?${query}`);
 };
+
+// Reportar una publicación sospechosa: queda en la cola del administrador (/admin/reportes)
+export const reportarPublicacion = (propiedadId, { motivo, descripcion }) =>
+  apiClient('/api/v1/reportes', {
+    method: 'POST',
+    body: JSON.stringify({ tipo_objetivo: 'propiedad', propiedad_id: propiedadId, motivo, ...(descripcion && { descripcion }) }),
+  });

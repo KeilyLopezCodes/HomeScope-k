@@ -14,6 +14,7 @@ import { sincronizarFotos } from '../services/fotosService';
 import { crearPropiedad, actualizarPropiedad, publicarPropiedad } from '../services/propiedadesService';
 import { useToast } from '../../../shared/components/ui';
 import { Button, Card, Spinner } from '../../../shared/components/ui';
+import { AvisoVerificacion } from '../../verificacion';
 
 const FIELDS_PER_STEP = [
   ['titulo', 'tipo_propiedad_id', 'modalidad', 'precio', 'moneda', 'descripcion'],
@@ -82,10 +83,11 @@ export default function PublicarPropiedadPage({ modo: modoRuta = 'publicar' }) {
   const cargada  = useRef(false);
   const navigate = useNavigate();
   const toast    = useToast();
-  const { user } = useAuth();
+  const { user, sesionVerificada } = useAuth();
   const queryClient = useQueryClient();
 
-  const propiedad = usePropiedad(propiedadId, { usuarioId: user?.id, enabled: Boolean(propiedadId) });
+  // Un borrador solo lo ve su dueño: se pide cuando la sesión ya está restaurada (si no, respondería 404)
+  const propiedad = usePropiedad(propiedadId, { usuarioId: user?.id, enabled: Boolean(propiedadId) && sesionVerificada });
 
   const {
     register, handleSubmit, trigger,
@@ -202,7 +204,7 @@ export default function PublicarPropiedadPage({ modo: modoRuta = 'publicar' }) {
   // ── Carga de la propiedad que se continúa o edita ──────────────────────────
   if (propiedadId) {
     const p = propiedad.data;
-    if (propiedad.isLoading) return (
+    if (propiedad.isPending) return (
       <div className="flex justify-center py-24"><Spinner /></div>
     );
     if (propiedad.isError) return (
@@ -239,6 +241,9 @@ export default function PublicarPropiedadPage({ modo: modoRuta = 'publicar' }) {
             </span>
           )}
         </div>
+
+        {/* Al editar no hace falta: editar no publica */}
+        {modo !== 'editar' && <AvisoVerificacion className="mb-6" />}
 
         <StepIndicator current={step} />
 

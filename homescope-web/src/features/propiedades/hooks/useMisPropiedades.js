@@ -2,13 +2,17 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   listarMisPropiedades, cambiarEstadoPropiedad, renovarPropiedad, eliminarPropiedad,
 } from '../services/propiedadesService';
+import { useAuth } from '../../auth';
 
 export const MIS_PROPIEDADES_KEY = ['propiedades', 'mias'];
 
+// Espera a que se restaure la sesión: al recargar la página, el token llega con el refresh
 export function useMisPropiedades({ estado, page, pageSize = 10 }) {
+  const { sesionVerificada } = useAuth();
   return useQuery({
     queryKey: [...MIS_PROPIEDADES_KEY, estado, page, pageSize],
     queryFn:  () => listarMisPropiedades({ estado, page, pageSize }),
+    enabled:  sesionVerificada,
     // Al cambiar de pestaña o de página se sigue mostrando la lista anterior mientras carga
     placeholderData: keepPreviousData,
   });

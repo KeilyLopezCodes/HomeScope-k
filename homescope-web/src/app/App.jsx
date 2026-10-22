@@ -7,6 +7,7 @@ import { VisitasPage } from '../features/agenda';
 import { PerfilVendedorPage } from '../features/resenas';
 import { AdminPage } from '../features/admin';
 import { FavoritosPage, CompararPage, BarraComparador } from '../features/favoritos';
+import { VerificacionPage } from '../features/verificacion';
 import { SocketProvider } from '../shared/realtime/SocketProvider';
 import MainLayout from '../shared/components/MainLayout';
 import ComingSoonPage from '../shared/pages/ComingSoonPage';
@@ -111,6 +112,14 @@ export default function App() {
         {/* alias legacy */}
         <Route path="/propiedades/nueva" element={<Navigate to="/publicar" replace />} />
 
+        {/* Verificación de identidad: requisito para publicar */}
+        <Route path="/verificacion" element={
+          <ProtectedRoute>
+            <RoleRoute roles={ROLES_VENDEDOR}>
+              <MainLayout><VerificacionPage /></MainLayout>
+            </RoleRoute>
+          </ProtectedRoute>
+        } />
         {/* Gestión de anuncios: solo vendedores */}
         <Route path="/mis-propiedades" element={
           <ProtectedRoute>

@@ -8,6 +8,7 @@ import {
 } from '../../../shared/components/ui';
 import { useAccionPropiedad, useMisPropiedades } from '../hooks/useMisPropiedades';
 import { formatearFecha, formatearPrecio } from '../utils/formato';
+import { AvisoVerificacion } from '../../verificacion';
 
 const PAGE_SIZE = 10;
 
@@ -176,7 +177,7 @@ export default function MisPropiedadesPage() {
   const toast  = useToast();
   const navigate = useNavigate();
 
-  const { data, isLoading, isError, refetch, isFetching } = useMisPropiedades({ estado, page, pageSize: PAGE_SIZE });
+  const { data, isPending, isError, refetch, isFetching } = useMisPropiedades({ estado, page, pageSize: PAGE_SIZE });
   const accion = useAccionPropiedad();
   const [confirmando, setConfirmando] = useState(null); // { propiedad, tipo: 'eliminar' | 'cerrar' }
   const [errores, setErrores] = useState({});           // id → mensaje del backend
@@ -246,6 +247,9 @@ export default function MisPropiedadesPage() {
         )}
       </div>
 
+      {/* Sin identidad verificada no se puede publicar ni reactivar */}
+      <AvisoVerificacion className="mb-6" />
+
       {!sinPropiedades && (
         <div className="mb-6 -mx-4 px-4 overflow-x-auto">
           <div role="tablist" aria-label="Filtrar por estado" className="flex gap-1 border-b border-secondary-200 min-w-max">
@@ -281,7 +285,7 @@ export default function MisPropiedadesPage() {
         </div>
       )}
 
-      {isLoading ? (
+      {isPending ? (
         <div className="flex justify-center py-16"><Spinner /></div>
       ) : isError ? (
         <EmptyState

@@ -6,6 +6,7 @@ import { useAuth } from '../../auth';
 import { BotonComparar, useToggleFavorito } from '../../favoritos';
 import { ContactarVendedorModal } from '../../mensajes';
 import { SolicitarVisitaModal } from '../../agenda';
+import ReportarPublicacionModal from './ReportarPublicacionModal';
 
 // Lleva a iniciar sesión; LoginPage regresa a `from` (esta misma ficha) al autenticarse
 function useIrALogin() {
@@ -64,12 +65,7 @@ export default function AccionesPropiedad({ propiedad, queryKey }) {
   const irALogin = useIrALogin();
   const [contactando, setContactando] = useState(false);
   const [agendando, setAgendando] = useState(false);
-
-  // Los reportes dependen de un módulo que aún no está listo
-  function accionPendiente(mensaje) {
-    if (!user) return irALogin();
-    toast(`${mensaje} estará disponible próximamente.`, 'info');
-  }
+  const [reportando, setReportando] = useState(false);
 
   async function compartir() {
     const url = window.location.href;
@@ -120,10 +116,11 @@ export default function AccionesPropiedad({ propiedad, queryKey }) {
       )}
       <div className="flex flex-wrap justify-center gap-1">
         {botonCompartir}
-        <Button variant="text" size="sm" onClick={() => accionPendiente('Reportar publicaciones')}>
+        <Button variant="text" size="sm" onClick={() => (user ? setReportando(true) : irALogin())}>
           <Flag size={16} aria-hidden="true" /> Reportar
         </Button>
       </div>
+      {reportando && <ReportarPublicacionModal propiedad={propiedad} onCerrar={() => setReportando(false)} />}
     </div>
   );
 }

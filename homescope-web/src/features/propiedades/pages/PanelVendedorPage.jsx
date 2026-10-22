@@ -208,7 +208,7 @@ export default function PanelVendedorPage() {
     setSearchParams(params, { replace: true });
   }
 
-  const { data, isLoading, isError, error, isFetching, refetch } = estadisticas;
+  const { data, isPending, isError, error, isFetching, refetch } = estadisticas;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -248,7 +248,7 @@ export default function PanelVendedorPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isPending ? (
         <div className="flex justify-center py-16"><Spinner /></div>
       ) : isError ? (
         error?.status === 404 ? (

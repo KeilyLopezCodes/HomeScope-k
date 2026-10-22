@@ -6,7 +6,8 @@ const MOTIVO_MIN = 5;
 const MOTIVO_MAX = 300;
 
 // Confirmación de una acción de moderación. El motivo es obligatorio: queda en el registro de acciones.
-//   accion: { titulo, descripcion, confirmar, variante: 'primary' | 'danger', objetivo, irreversible }
+//   accion: { titulo, descripcion, confirmar, variante: 'primary' | 'danger', objetivo, irreversible,
+//             etiquetaMotivo?, ejemplo? (texto y ejemplo del campo de motivo) }
 //   onConfirmar(motivo): promesa; si falla se muestra el mensaje del backend sin cerrar el diálogo
 export default function DialogoAccion({ accion, onCerrar, onConfirmar, enviando }) {
   const [motivo, setMotivo] = useState('');
@@ -40,11 +41,11 @@ export default function DialogoAccion({ accion, onCerrar, onConfirmar, enviando 
           )}
           <Textarea
             id="motivo-accion"
-            label="Motivo"
+            label={accion.etiquetaMotivo ?? 'Motivo'}
             required
             maxLength={MOTIVO_MAX}
             rows={3}
-            placeholder="Ej.: Las fotos no corresponden a la propiedad publicada."
+            placeholder={accion.ejemplo ?? 'Ej.: Las fotos no corresponden a la propiedad publicada.'}
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             error={error}

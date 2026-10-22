@@ -1,16 +1,18 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { BarChart3, Flag, History, MessageSquareWarning, Users } from 'lucide-react';
+import { BadgeCheck, BarChart3, Flag, History, MessageSquareWarning, Users } from 'lucide-react';
 import EstadisticasPlataforma from './EstadisticasPlataforma';
 import PublicacionesReportadas from './PublicacionesReportadas';
 import UsuariosModeracion from './UsuariosModeracion';
 import ComentariosReportados from './ComentariosReportados';
 import HistorialAcciones from './HistorialAcciones';
+import VerificacionesAdmin from './VerificacionesAdmin';
 
 const SECCIONES = [
   { ruta: '',             titulo: 'Estadísticas', icono: BarChart3,            Pagina: EstadisticasPlataforma },
   { ruta: 'publicaciones', titulo: 'Publicaciones', icono: Flag,                Pagina: PublicacionesReportadas },
   { ruta: 'usuarios',     titulo: 'Usuarios',     icono: Users,                Pagina: UsuariosModeracion },
   { ruta: 'comentarios',  titulo: 'Comentarios',  icono: MessageSquareWarning, Pagina: ComentariosReportados },
+  { ruta: 'verificaciones', titulo: 'Verificaciones', icono: BadgeCheck,         Pagina: VerificacionesAdmin },
   { ruta: 'historial',    titulo: 'Historial',    icono: History,              Pagina: HistorialAcciones },
 ];
 
@@ -20,7 +22,7 @@ export default function AdminPage() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-secondary-900">Administración</h1>
-        <p className="text-sm text-secondary-500">Estadísticas de la plataforma y moderación de publicaciones, usuarios y comentarios reportados.</p>
+        <p className="text-sm text-secondary-500">Estadísticas de la plataforma, moderación de lo reportado y verificación de vendedores.</p>
       </div>
 
       <nav aria-label="Secciones de administración" className="-mx-4 mb-6 overflow-x-auto px-4">
