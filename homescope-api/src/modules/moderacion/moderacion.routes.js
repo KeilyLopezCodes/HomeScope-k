@@ -30,6 +30,8 @@ export const reportesRouter = Router();
  *       Según `tipo_objetivo` se envía `comentario_zona_id`, `propiedad_id` (publicada) o `usuario_reportado_id`.
  *       Motivos: `spam`, `ofensivo`, `informacion_falsa`, `datos_personales`, `fraude` u `otro` (con `otro`, la descripción es obligatoria).
  *       Un usuario no puede reportar dos veces lo mismo mientras su reporte siga abierto, ni reportarse a sí mismo o a lo suyo.
+ *       Cada administrador activo recibe una notificación (`tipo: moderacion`, `referencia_tipo: reporte_propiedad`,
+ *       `reporte_usuario` o `reporte_comentario`, `referencia_id`: el id del reporte), también en tiempo real.
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
@@ -93,7 +95,9 @@ verificacionesRouter.get('/mia', authenticate, controller.getMiVerificacion);
  *   post:
  *     tags: [Verificación de vendedores]
  *     summary: Enviar mi documento de identidad (solo vendedores)
- *     description: Una sola solicitud pendiente a la vez. JPG, PNG, WEBP o PDF de hasta 5 MB en el campo `documento`.
+ *     description: |
+ *       Una sola solicitud pendiente a la vez. JPG, PNG, WEBP o PDF de hasta 5 MB en el campo `documento`.
+ *       Cada administrador activo recibe una notificación (`tipo: moderacion`, `referencia_tipo: verificacion_vendedor`).
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true

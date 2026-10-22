@@ -5,6 +5,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { storage } from '../../shared/adapters/storage/index.js';
 import { ModeracionRepository } from './moderacion.repository.js';
 import { ComunicacionService } from '../comunicacion/comunicacion.service.js';
+import { avisarVerificacion } from './moderacion.avisos.js';
 
 const repo          = new ModeracionRepository();
 const comunicacion  = new ComunicacionService();
@@ -44,6 +45,8 @@ export class VerificacionService {
     const { public_id } = await storage.subirPrivado(archivo, `verificaciones/${usuario.id}`);
     try {
       const solicitud = await repo.crearVerificacion({ usuarioId: usuario.id, tipoDocumento: tipo_documento, documentoRef: public_id });
+      // Los administradores reciben una notificación para revisarla
+      await avisarVerificacion({ solicitud, vendedorId: usuario.id });
       return formatearSolicitud(solicitud);
     } catch (err) {
       await storage.eliminarPrivado(public_id).catch(() => {});

@@ -13,6 +13,7 @@ import { ComunicacionRepository } from '../comunicacion/comunicacion.repository.
 import { AgendaRepository } from '../agenda/agenda.repository.js';
 import { FavoritosRepository } from '../favoritos/favoritos.repository.js';
 import { rangoPeriodo, serieDiaria } from '../../shared/utils/periodo.js';
+import { avisarReporte } from './moderacion.avisos.js';
 
 const repo           = new ModeracionRepository();
 const reputacionRepo = new ReputacionRepository();
@@ -77,25 +78,31 @@ export class ModeracionService {
   // POST /reportes: un comentario de zona visible, una publicación publicada o un usuario
   async crearReporte(usuarioId, { tipo_objetivo, comentario_zona_id, propiedad_id, usuario_reportado_id, motivo, descripcion }) {
     let objetivoId;
+    let objetivo; // lo que se le cuenta al administrador en el aviso
     if (tipo_objetivo === 'comentario') {
       const comentario = await reputacionRepo.buscarComentarioPorId(comentario_zona_id);
       if (!comentario || comentario.estado !== 'visible') throw new AppError('NO_ENCONTRADO', 'Comentario no encontrado', 404);
       if (comentario.usuario.id === usuarioId) throw new AppError('OBJETIVO_PROPIO', 'No puedes reportar tu propio comentario', 422);
       objetivoId = comentario_zona_id;
+      objetivo = { texto: comentario.comentario };
     } else if (tipo_objetivo === 'propiedad') {
       const propiedad = await propiedadesRepo.datosModeracion(propiedad_id);
       if (!propiedad || propiedad.estado !== 'publicado') throw new AppError('NO_ENCONTRADO', 'Publicación no encontrada', 404);
       if (propiedad.vendedor_id === usuarioId) throw new AppError('OBJETIVO_PROPIO', 'No puedes reportar tu propia publicación', 422);
       objetivoId = propiedad_id;
+      objetivo = { titulo: propiedad.titulo };
     } else {
       const usuario = await identidadRepo.datosModeracion(usuario_reportado_id);
       if (!usuario || usuario.estado === 'inhabilitado') throw new AppError('NO_ENCONTRADO', 'Usuario no encontrado', 404);
       if (usuario.id === usuarioId) throw new AppError('OBJETIVO_PROPIO', 'No puedes reportarte a ti mismo', 422);
       objetivoId = usuario_reportado_id;
+      objetivo = { nombre: nombreCompleto(usuario) };
     }
 
     try {
       const reporte = await repo.crearReporte({ reportanteId: usuarioId, tipo: tipo_objetivo, objetivoId, motivo, descripcion });
+      // Los administradores reciben una notificación (si falla, el reporte ya quedó guardado)
+      await avisarReporte({ reporte, tipo: tipo_objetivo, objetivo, reportanteId: usuarioId });
       // Al usuario que reporta solo se le confirma; los datos de moderación son para el administrador
       return { id: reporte.id, tipo_objetivo: reporte.tipo_objetivo, motivo: reporte.motivo, estado: reporte.estado, fecha_creacion: reporte.fecha_creacion };
     } catch (err) {

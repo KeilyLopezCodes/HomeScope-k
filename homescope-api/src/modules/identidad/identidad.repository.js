@@ -222,4 +222,13 @@ export class IdentidadRepository {
       porRol:    Object.fromEntries(porRol.map((g) => [g.rol, g.total])),
     };
   }
+
+  // Administradores que pueden atender la moderación (para avisarles de reportes y verificaciones)
+  async idsAdministradoresActivos() {
+    const filas = await prisma.usuario.findMany({
+      where:  { estado: 'activo', usuario_rol: { some: { rol: { nombre: { in: ['administrador', 'admin'] } } } } },
+      select: { id: true },
+    });
+    return filas.map((f) => f.id);
+  }
 }
