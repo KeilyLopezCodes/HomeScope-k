@@ -5,7 +5,7 @@ import { Badge, Button, EmptyState, Spinner } from '../../../shared/components/u
 import NotFoundPage from '../../../shared/pages/NotFoundPage';
 import { useAuth } from '../../auth';
 import { IndiceConveniencia, SeccionPuntosInteres, Semaforo } from '../../indice';
-import { SeccionResenas } from '../../resenas';
+import { FormularioResena } from '../../resenas';
 import GaleriaFotos from '../components/GaleriaFotos';
 import HistorialPrecios from '../components/HistorialPrecios';
 import VendedorCard from '../components/VendedorCard';
@@ -174,9 +174,13 @@ export default function PropiedadDetallePage() {
             />
           </Seccion>
 
-          <Seccion titulo="Reseñas del vendedor">
-            <SeccionResenas propiedad={propiedad} />
-          </Seccion>
+          {/* La calificación y las reseñas del vendedor están en su tarjeta (panel lateral) y en su perfil.
+              Aquí solo el formulario: calificar depende de haber contactado o visitado esta propiedad */}
+          {!propiedad.es_dueno && (
+            <Seccion titulo="Califica al vendedor">
+              <FormularioResena propiedad={propiedad} />
+            </Seccion>
+          )}
         </div>
 
         {/* Panel lateral fijo en escritorio; en móvil queda al final, después del contenido */}
