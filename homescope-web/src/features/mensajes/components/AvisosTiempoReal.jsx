@@ -32,6 +32,8 @@ export default function AvisosTiempoReal() {
     // Si ya está viendo esa conversación no hace falta avisar: el mensaje aparece en el chat
     // Reseña nueva: cambió el promedio del vendedor
     if (notificacion.referencia_tipo === 'resena') queryClient.invalidateQueries({ queryKey: ['vendedores'] });
+    // Algo nuevo que moderar: las listas y conteos del panel de administración cambiaron
+    if (notificacion.tipo === 'moderacion') queryClient.invalidateQueries({ queryKey: ['admin'] });
 
     const ruta = rutaDeNotificacion(notificacion, user?.id);
     if (ruta && pathname === ruta && notificacion.referencia_tipo === 'conversacion') return;
