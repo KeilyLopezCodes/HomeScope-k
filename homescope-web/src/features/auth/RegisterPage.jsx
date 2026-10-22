@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
+import { MailCheck } from 'lucide-react';
 import { registro } from './authService';
+import AuthLayout, { estiloCampo, estiloEtiqueta, estiloError } from './components/AuthLayout';
+
+const Obligatorio = () => <span className="text-danger-500">*</span>;
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -27,36 +31,37 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="bg-white rounded-2xl shadow p-8 max-w-md w-full text-center space-y-4">
-          <h2 className="text-2xl font-bold text-gray-800">¡Registro exitoso!</h2>
-          <p className="text-gray-600">
+      <AuthLayout>
+        <div className="space-y-4 text-center">
+          <MailCheck size={48} className="mx-auto text-success-600" aria-hidden="true" />
+          <h2 className="text-2xl font-bold text-secondary-900">¡Registro exitoso!</h2>
+          <p className="text-secondary-600">
             Revisa tu correo electrónico y haz clic en el enlace de verificación para activar tu
             cuenta.
           </p>
-          <Link to="/login" className="inline-block text-blue-600 hover:underline font-medium">
+          <Link to="/login" className="inline-block font-medium text-primary-600 hover:underline">
             Ir al inicio de sesión
           </Link>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="bg-white rounded-2xl shadow p-8 max-w-md w-full space-y-6">
+    <AuthLayout>
+      <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Crear cuenta</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-secondary-900">Crear cuenta</h1>
+          <p className="mt-1 text-sm text-secondary-500">
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="text-blue-600 hover:underline">
+            <Link to="/login" className="font-medium text-primary-600 hover:underline">
               Inicia sesión
             </Link>
           </p>
         </div>
 
         {serverError && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+          <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-2 text-sm text-danger-700">
             {serverError}
           </p>
         )}
@@ -65,14 +70,15 @@ export default function RegisterPage() {
           {/* Nombre + Apellido */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre <span className="text-red-500">*</span>
+              <label htmlFor="registro-nombre" className={estiloEtiqueta}>
+                Nombre <Obligatorio />
               </label>
               <input
+                id="registro-nombre"
                 type="text"
-                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.nombre ? 'border-red-400' : 'border-gray-300'
-                }`}
+                autoComplete="given-name"
+                aria-invalid={Boolean(errors.nombre)}
+                className={estiloCampo(errors.nombre)}
                 placeholder="María"
                 {...register('nombre', {
                   required: 'Obligatorio.',
@@ -80,19 +86,18 @@ export default function RegisterPage() {
                   maxLength: { value: 100, message: 'Máximo 100 caracteres.' },
                 })}
               />
-              {errors.nombre && (
-                <p className="text-xs text-red-500 mt-1">{errors.nombre.message}</p>
-              )}
+              {errors.nombre && <p className={estiloError}>{errors.nombre.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Apellido <span className="text-red-500">*</span>
+              <label htmlFor="registro-apellido" className={estiloEtiqueta}>
+                Apellido <Obligatorio />
               </label>
               <input
+                id="registro-apellido"
                 type="text"
-                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.apellido ? 'border-red-400' : 'border-gray-300'
-                }`}
+                autoComplete="family-name"
+                aria-invalid={Boolean(errors.apellido)}
+                className={estiloCampo(errors.apellido)}
                 placeholder="López"
                 {...register('apellido', {
                   required: 'Obligatorio.',
@@ -100,22 +105,21 @@ export default function RegisterPage() {
                   maxLength: { value: 100, message: 'Máximo 100 caracteres.' },
                 })}
               />
-              {errors.apellido && (
-                <p className="text-xs text-red-500 mt-1">{errors.apellido.message}</p>
-              )}
+              {errors.apellido && <p className={estiloError}>{errors.apellido.message}</p>}
             </div>
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Correo electrónico <span className="text-red-500">*</span>
+            <label htmlFor="registro-email" className={estiloEtiqueta}>
+              Correo electrónico <Obligatorio />
             </label>
             <input
+              id="registro-email"
               type="email"
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.email ? 'border-red-400' : 'border-gray-300'
-              }`}
+              autoComplete="email"
+              aria-invalid={Boolean(errors.email)}
+              className={estiloCampo(errors.email)}
               placeholder="maria@example.com"
               {...register('email', {
                 required: 'El correo es obligatorio.',
@@ -125,21 +129,20 @@ export default function RegisterPage() {
                 },
               })}
             />
-            {errors.email && (
-              <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
-            )}
+            {errors.email && <p className={estiloError}>{errors.email.message}</p>}
           </div>
 
           {/* Contraseña */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contraseña <span className="text-red-500">*</span>
+            <label htmlFor="registro-password" className={estiloEtiqueta}>
+              Contraseña <Obligatorio />
             </label>
             <input
+              id="registro-password"
               type="password"
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.password ? 'border-red-400' : 'border-gray-300'
-              }`}
+              autoComplete="new-password"
+              aria-invalid={Boolean(errors.password)}
+              className={estiloCampo(errors.password)}
               placeholder="Mínimo 8 caracteres"
               {...register('password', {
                 required: 'La contraseña es obligatoria.',
@@ -147,21 +150,20 @@ export default function RegisterPage() {
                 maxLength: { value: 72, message: 'Máximo 72 caracteres.' },
               })}
             />
-            {errors.password && (
-              <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>
-            )}
+            {errors.password && <p className={estiloError}>{errors.password.message}</p>}
           </div>
 
           {/* Teléfono (opcional) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Teléfono <span className="text-gray-400 font-normal">(opcional)</span>
+            <label htmlFor="registro-telefono" className={estiloEtiqueta}>
+              Teléfono <span className="font-normal text-secondary-400">(opcional)</span>
             </label>
             <input
+              id="registro-telefono"
               type="tel"
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.telefono ? 'border-red-400' : 'border-gray-300'
-              }`}
+              autoComplete="tel"
+              aria-invalid={Boolean(errors.telefono)}
+              className={estiloCampo(errors.telefono)}
               placeholder="+502 5555-1234"
               onKeyDown={(e) => {
                 // Permitir: dígitos, +, -, espacio, y teclas de control
@@ -176,16 +178,14 @@ export default function RegisterPage() {
                 },
               })}
             />
-            {errors.telefono && (
-              <p className="text-xs text-red-500 mt-1">{errors.telefono.message}</p>
-            )}
+            {errors.telefono && <p className={estiloError}>{errors.telefono.message}</p>}
           </div>
 
           {/* Rol */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              ¿Cómo usarás HomeScope? <span className="text-red-500">*</span>
-            </label>
+          <fieldset>
+            <legend className="mb-2 block text-sm font-medium text-secondary-700">
+              ¿Cómo usarás HomeScope? <Obligatorio />
+            </legend>
             <div className="grid grid-cols-2 gap-3">
               {[
                 { value: 'comprador', label: '🏠 Comprador / Arrendatario', desc: 'Busco propiedades' },
@@ -193,7 +193,7 @@ export default function RegisterPage() {
               ].map(({ value, label, desc }) => (
                 <label
                   key={value}
-                  className="relative flex flex-col items-center border rounded-xl p-3 cursor-pointer has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 border-gray-200 hover:border-gray-300 transition-colors"
+                  className="relative flex cursor-pointer flex-col items-center rounded-xl border border-secondary-200 p-3 transition-colors hover:border-secondary-300 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500"
                 >
                   <input
                     type="radio"
@@ -201,31 +201,31 @@ export default function RegisterPage() {
                     className="sr-only"
                     {...register('roles')}
                   />
-                  <span className="text-sm font-medium text-gray-800 text-center">{label}</span>
-                  <span className="text-xs text-gray-500 mt-0.5">{desc}</span>
+                  <span className="text-center text-sm font-medium text-secondary-800">{label}</span>
+                  <span className="mt-0.5 text-xs text-secondary-500">{desc}</span>
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-lg text-sm transition-colors"
+              className="flex-1 rounded-lg border border-secondary-300 py-3 text-sm font-medium text-secondary-700 transition-colors hover:bg-secondary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
+              className="flex-1 rounded-lg bg-primary-600 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-60"
             >
               {isSubmitting ? 'Registrando…' : 'Crear cuenta'}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { login } from './authService';
 import { useAuth } from './authContext';
+import AuthLayout, { estiloCampo, estiloEtiqueta, estiloError } from './components/AuthLayout';
 
 const ROLE_REDIRECT = {
   admin: '/admin',
@@ -33,35 +34,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="bg-white rounded-2xl shadow p-8 max-w-md w-full space-y-6">
+    <AuthLayout>
+      <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Iniciar sesión</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-secondary-900">Iniciar sesión</h1>
+          <p className="mt-1 text-sm text-secondary-500">
             ¿No tienes cuenta?{' '}
-            <Link to="/registro" className="text-blue-600 hover:underline">
+            <Link to="/registro" className="font-medium text-primary-600 hover:underline">
               Regístrate
             </Link>
           </p>
         </div>
 
         {serverError && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+          <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-2 text-sm text-danger-700">
             {serverError}
           </p>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="login-email" className={estiloEtiqueta}>
               Correo electrónico
             </label>
             <input
+              id="login-email"
               type="email"
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.email ? 'border-red-400' : 'border-gray-300'
-              }`}
+              autoComplete="email"
+              aria-invalid={Boolean(errors.email)}
+              className={estiloCampo(errors.email)}
               placeholder="maria@example.com"
               {...register('email', {
                 required: 'El correo es obligatorio.',
@@ -71,51 +73,52 @@ export default function LoginPage() {
                 },
               })}
             />
-            {errors.email && (
-              <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
-            )}
+            {errors.email && <p className={estiloError}>{errors.email.message}</p>}
           </div>
 
           {/* Contraseña */}
           <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-              <Link to="/recuperar" className="text-xs text-blue-600 hover:underline">
+            <div className="mb-1 flex items-center justify-between">
+              <label htmlFor="login-password" className="block text-sm font-medium text-secondary-700">Contraseña</label>
+              <Link to="/recuperar" className="text-xs font-medium text-primary-600 hover:underline">
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
             <input
+              id="login-password"
               type="password"
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.password ? 'border-red-400' : 'border-gray-300'
-              }`}
+              autoComplete="current-password"
+              aria-invalid={Boolean(errors.password)}
+              className={estiloCampo(errors.password)}
               placeholder="Tu contraseña"
               {...register('password', { required: 'La contraseña es obligatoria.' })}
             />
-            {errors.password && (
-              <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>
-            )}
+            {errors.password && <p className={estiloError}>{errors.password.message}</p>}
           </div>
 
           {/* Recordar sesión */}
-          <label className="flex items-center gap-2 cursor-pointer select-none">
+          <label className="flex cursor-pointer select-none items-center gap-2">
             <input
               type="checkbox"
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
               {...register('recordar')}
             />
-            <span className="text-sm text-gray-600">Recordar sesión</span>
+            <span className="text-sm text-secondary-600">Recordar sesión</span>
           </label>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
+            className="w-full rounded-lg bg-primary-600 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-60"
           >
             {isSubmitting ? 'Ingresando…' : 'Iniciar sesión'}
           </button>
         </form>
+
+        <p className="text-center text-sm text-secondary-500">
+          <Link to="/propiedades" className="font-medium text-primary-600 hover:underline">Explorar propiedades sin iniciar sesión</Link>
+        </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
