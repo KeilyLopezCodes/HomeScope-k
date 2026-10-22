@@ -21,7 +21,8 @@
     "db:seed:agenda": "node prisma/seed-agenda.js",
     "db:seed:resenas": "node prisma/seed-resenas.js",
     "db:seed:estadisticas": "node prisma/seed-estadisticas.js",
-    "db:seed:moderacion": "node prisma/seed-moderacion.js"
+    "db:seed:moderacion": "node prisma/seed-moderacion.js",
+    "db:seed:verificaciones": "node prisma/seed-verificaciones.js"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",

@@ -47,7 +47,10 @@ export class IdentidadRepository {
   }
 
   async estadoCuenta(id) {
-    return prisma.usuario.findUnique({ where: { id }, select: { estado: true, correo_verificado: true } });
+    return prisma.usuario.findUnique({
+      where:  { id },
+      select: { estado: true, correo_verificado: true, usuario_rol: { select: { rol: { select: { nombre: true } } } } },
+    });
   }
 
   // Datos públicos de un usuario (perfil del vendedor): sin correo, teléfono ni nada de la cuenta (RNF-08)

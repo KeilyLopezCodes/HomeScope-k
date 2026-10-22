@@ -21,6 +21,13 @@ export class StoragePort {
    */
   async subir(_archivo, _carpeta) { throw new Error('Not implemented'); }
   async eliminar(_publicId) { throw new Error('Not implemented'); }
+
+  // Archivos privados (documentos de identidad): no tienen URL pública; solo se leen desde la API
+  /** @returns {Promise<{ public_id: string }>} */
+  async subirPrivado(_archivo, _carpeta) { throw new Error('Not implemented'); }
+  /** @returns {Promise<{ buffer: Buffer, mimetype: string }>} */
+  async leerPrivado(_publicId) { throw new Error('Not implemented'); }
+  async eliminarPrivado(_publicId) { throw new Error('Not implemented'); }
 }
 
 // MailPort — interfaz para SMTP

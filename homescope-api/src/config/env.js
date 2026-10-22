@@ -13,6 +13,8 @@ const envSchema = z.object({
   // Almacenamiento de archivos: 'local' (disco de este equipo) | 'cloudinary'
   STORAGE_DRIVER: z.enum(['local', 'cloudinary']).default('local'),
   UPLOADS_DIR: z.string().default('uploads'),
+  // Documentos de verificación de vendedores: no se sirven públicamente
+  UPLOADS_PRIVADOS_DIR: z.string().default('uploads-privados'),
   // URL pública con la que el navegador accede a la API (para armar URLs de archivos locales)
   API_PUBLIC_URL: z.string().url().optional(),
   CLOUDINARY_URL: z.string().optional(),

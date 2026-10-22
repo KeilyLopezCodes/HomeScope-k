@@ -19,7 +19,7 @@ import comunicacionRoutes from './modules/comunicacion/comunicacion.routes.js';
 import notificacionesRoutes from './modules/comunicacion/notificaciones.routes.js';
 import { disponibilidadRouter, horariosRouter, visitasRouter } from './modules/agenda/agenda.routes.js';
 import { resenasRouter, vendedoresRouter, comentariosZonaRouter } from './modules/reputacion/reputacion.routes.js';
-import moderacionRoutes, { reportesRouter } from './modules/moderacion/moderacion.routes.js';
+import moderacionRoutes, { reportesRouter, verificacionesRouter } from './modules/moderacion/moderacion.routes.js';
 
 const app = express();
 
@@ -73,6 +73,7 @@ app.use('/api/v1/resenas', resenasRouter);
 app.use('/api/v1/vendedores', vendedoresRouter);
 app.use('/api/v1/propiedades/:id/comentarios-zona', comentariosZonaRouter);
 app.use('/api/v1/reportes', reportesRouter);
+app.use('/api/v1/verificaciones', verificacionesRouter);
 app.use('/api/v1/admin', moderacionRoutes);
 
 app.use(errorHandler);

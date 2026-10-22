@@ -108,5 +108,30 @@ export const estadisticasPlataformaSchema = z.object({
     .default(30),
 });
 
-// TODO: verificación de vendedores
-export const resolverVerificacionSchema = z.object({});
+// ── Verificación de vendedores ───────────────────────────────────────────────
+export const TIPOS_DOCUMENTO = ['dpi', 'pasaporte', 'licencia'];
+export const DOCUMENTO_CONFIG = {
+  maxBytes: 5 * 1024 * 1024,
+  tipos:    ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+};
+
+// POST /verificaciones (multipart): el archivo va en el campo `documento`
+export const solicitarVerificacionSchema = z.object({
+  tipo_documento: z.enum(TIPOS_DOCUMENTO, {
+    errorMap: () => ({ message: `tipo_documento debe ser ${TIPOS_DOCUMENTO.join(', ')}` }),
+  }),
+});
+
+// GET /admin/verificaciones?estado=pendiente
+export const listarVerificacionesSchema = z.object({
+  estado: z.enum(['pendiente', 'aprobada', 'rechazada']).optional(),
+  ...paginacion,
+});
+
+// PUT /admin/verificaciones/:id
+export const resolverVerificacionSchema = z.object({
+  estado:         z.enum(['aprobada', 'rechazada'], { errorMap: () => ({ message: 'estado debe ser aprobada o rechazada' }) }),
+  motivo_rechazo: textoLimpio(300).optional().transform((v) => v || undefined),
+}).refine((r) => r.estado !== 'rechazada' || (r.motivo_rechazo?.length ?? 0) >= 5, {
+  message: 'Explica al vendedor por qué se rechaza (mínimo 5 caracteres)', path: ['motivo_rechazo'],
+});

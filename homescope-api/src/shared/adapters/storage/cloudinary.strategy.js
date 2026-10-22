@@ -4,6 +4,8 @@ import { StoragePort } from '../../ports/index.js';
 //   subir    → cloudinary.uploader.upload_stream({ folder: carpeta }) con archivo.buffer
 //              y devolver { url: result.secure_url, public_id: result.public_id }
 //   eliminar → cloudinary.uploader.destroy(publicId)
+//   subirPrivado / leerPrivado / eliminarPrivado → recursos con type: 'authenticated'
+//              (arquitectura: documentos de verificación como recursos privados)
 // Para activarla: STORAGE_DRIVER=cloudinary y CLOUDINARY_URL en el .env
 export class CloudinaryStorageStrategy extends StoragePort {
   constructor({ url }) {
@@ -16,6 +18,18 @@ export class CloudinaryStorageStrategy extends StoragePort {
   }
 
   async eliminar(_publicId) {
+    throw new Error('CloudinaryStorageStrategy aún no está implementada');
+  }
+
+  async subirPrivado(_archivo, _carpeta) {
+    throw new Error('CloudinaryStorageStrategy aún no está implementada');
+  }
+
+  async leerPrivado(_publicId) {
+    throw new Error('CloudinaryStorageStrategy aún no está implementada');
+  }
+
+  async eliminarPrivado(_publicId) {
     throw new Error('CloudinaryStorageStrategy aún no está implementada');
   }
 }

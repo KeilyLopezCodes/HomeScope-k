@@ -668,7 +668,9 @@ router.delete('/:id', authenticate, controller.eliminar);
  *     summary: Publicar propiedad (borrador → publicado)
  *     description: |
  *       Transición de estado `borrador` a `publicado`. Solo el dueño, con el correo verificado
- *       (si no, 403 `CORREO_NO_VERIFICADO`). El anuncio queda vigente 60 días.
+ *       (si no, 403 `CORREO_NO_VERIFICADO`)
+ *       y la identidad del vendedor verificada por un administrador (si no, 403 `VENDEDOR_NO_VERIFICADO`;
+ *       ver `POST /verificaciones`). El anuncio queda vigente 60 días.
  *       Encola el cálculo del Índice de Conveniencia, que se guarda en segundo plano (ADR-08).
  *     security:
  *       - bearerAuth: []

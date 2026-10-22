@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { authenticate, requireAdmin, requirePermission } from '../../shared/middleware/auth.js';
+import { subirArchivos } from '../../shared/middleware/upload.js';
+import { DOCUMENTO_CONFIG } from './moderacion.schemas.js';
 import * as controller from './moderacion.controller.js';
 
 /**
@@ -54,6 +56,65 @@ export const reportesRouter = Router();
  *       422: { description: "Datos inválidos u OBJETIVO_PROPIO." }
  */
 reportesRouter.post('/', authenticate, requirePermission('reporte.crear'), controller.crearReporte);
+
+// ── /verificaciones: el vendedor verifica su identidad para poder publicar ────
+export const verificacionesRouter = Router();
+
+/**
+ * @openapi
+ * tags:
+ *   name: Verificación de vendedores
+ *   description: |
+ *     Un vendedor debe verificar su identidad para publicar: envía una foto o PDF de su documento
+ *     (DPI, pasaporte o licencia) y un administrador lo aprueba o lo rechaza. Sin una verificación
+ *     aprobada, publicar o reactivar una propiedad responde 403 `VENDEDOR_NO_VERIFICADO`. Los vendedores
+ *     verificados muestran la insignia en la ficha y en su perfil. El documento se guarda de forma privada.
+ */
+
+/**
+ * @openapi
+ * /verificaciones/mia:
+ *   get:
+ *     tags: [Verificación de vendedores]
+ *     summary: Estado de mi verificación
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: "`verificado` y la última solicitud (o null si nunca envió una)."
+ *         content:
+ *           application/json:
+ *             example: { verificado: false, solicitud: { id: 3, estado: rechazada, tipo_documento: dpi, fecha_solicitud: "2026-10-21T15:00:00Z", fecha_revision: "2026-10-21T16:00:00Z", motivo_rechazo: "La foto está borrosa." } }
+ */
+verificacionesRouter.get('/mia', authenticate, controller.getMiVerificacion);
+
+/**
+ * @openapi
+ * /verificaciones:
+ *   post:
+ *     tags: [Verificación de vendedores]
+ *     summary: Enviar mi documento de identidad (solo vendedores)
+ *     description: Una sola solicitud pendiente a la vez. JPG, PNG, WEBP o PDF de hasta 5 MB en el campo `documento`.
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [tipo_documento, documento]
+ *             properties:
+ *               tipo_documento: { type: string, enum: [dpi, pasaporte, licencia] }
+ *               documento:      { type: string, format: binary }
+ *     responses:
+ *       201: { description: "Solicitud recibida (estado pendiente)." }
+ *       403: { description: El usuario no es vendedor. }
+ *       409: { description: "YA_VERIFICADO o SOLICITUD_PENDIENTE." }
+ *       413: { description: El archivo pesa más de 5 MB. }
+ *       422: { description: "Falta el archivo, tipo de documento inválido o formato no permitido." }
+ */
+verificacionesRouter.post('/', authenticate,
+  subirArchivos('documento', { maxArchivos: 1, maxBytes: DOCUMENTO_CONFIG.maxBytes, tipos: DOCUMENTO_CONFIG.tipos }),
+  controller.solicitarVerificacion);
 
 // ── /admin: solo administrador ───────────────────────────────────────────────
 const router = Router();
@@ -250,7 +311,76 @@ router.get('/acciones', controller.getAcciones);
  */
 router.get('/estadisticas', controller.getEstadisticas);
 
+/**
+ * @openapi
+ * /admin/verificaciones:
+ *   get:
+ *     tags: [Verificación de vendedores]
+ *     summary: Solicitudes de verificación de identidad (solo administrador)
+ *     description: Las pendientes salen de la más antigua a la más reciente (orden de atención).
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: estado, schema: { type: string, enum: [pendiente, aprobada, rechazada] } }
+ *       - { in: query, name: page, schema: { type: integer, default: 1 } }
+ *       - { in: query, name: pageSize, schema: { type: integer, default: 20, maximum: 50 } }
+ *     responses:
+ *       200: { description: "{ data: [{ id, estado, tipo_documento, fecha_solicitud, usuario, revisor, motivo_rechazo, documento }], total, page, pageSize }" }
+ *       403: { description: El usuario no es administrador. }
+ */
 router.get('/verificaciones', controller.getVerificaciones);
+
+/**
+ * @openapi
+ * /admin/verificaciones/{id}/documento:
+ *   get:
+ *     tags: [Verificación de vendedores]
+ *     summary: Ver el documento de identidad enviado (solo administrador)
+ *     description: Responde el archivo (imagen o PDF). Los documentos están en almacenamiento privado y solo se leen por aquí.
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: El archivo.
+ *         content:
+ *           image/jpeg: {}
+ *           image/png: {}
+ *           application/pdf: {}
+ *       403: { description: El usuario no es administrador. }
+ *       404: { description: La solicitud o el archivo no existen. }
+ */
+router.get('/verificaciones/:id/documento', controller.getDocumentoVerificacion);
+
+/**
+ * @openapi
+ * /admin/verificaciones/{id}:
+ *   put:
+ *     tags: [Verificación de vendedores]
+ *     summary: Aprobar o rechazar una solicitud (solo administrador)
+ *     description: |
+ *       Al aprobarla el vendedor puede publicar y su perfil muestra la insignia de vendedor verificado.
+ *       Al rechazarla el motivo es obligatorio; el vendedor puede enviar otra solicitud. En ambos casos recibe una notificación.
+ *       Quién la revisó y cuándo queda en la solicitud.
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [estado]
+ *             properties:
+ *               estado:         { type: string, enum: [aprobada, rechazada] }
+ *               motivo_rechazo: { type: string, maxLength: 300, example: "La foto del documento está borrosa." }
+ *     responses:
+ *       200: { description: La solicitud revisada. }
+ *       403: { description: El usuario no es administrador. }
+ *       404: { description: La solicitud no existe. }
+ *       409: { description: "YA_REVISADA — otro administrador ya la revisó." }
+ *       422: { description: "Datos inválidos (rechazo sin motivo) u OBJETIVO_PROPIO." }
+ */
 router.put('/verificaciones/:id', controller.resolverVerificacion);
 
 export default router;

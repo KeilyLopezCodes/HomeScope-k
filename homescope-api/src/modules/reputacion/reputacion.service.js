@@ -8,8 +8,10 @@ import { ComunicacionRepository } from '../comunicacion/comunicacion.repository.
 import { ComunicacionService } from '../comunicacion/comunicacion.service.js';
 import { AgendaRepository } from '../agenda/agenda.repository.js';
 import { IdentidadRepository } from '../identidad/identidad.repository.js';
+import { ModeracionRepository } from '../moderacion/moderacion.repository.js';
 
 const repo = new ReputacionRepository();
+const moderacionRepo = new ModeracionRepository();
 const propiedadesService = new PropiedadesService();
 const propiedadesRepo = new PropiedadesRepository();
 const comunicacionRepo = new ComunicacionRepository();
@@ -164,9 +166,10 @@ export class ReputacionService {
     if (!usuario || ESTADOS_OCULTOS.includes(usuario.estado) || !roles.some((r) => ROLES_VENDEDOR.includes(r)))
       throw new AppError('NO_ENCONTRADO', 'Vendedor no encontrado', 404);
 
-    const [resumen, publicadas] = await Promise.all([
+    const [resumen, publicadas, verificado] = await Promise.all([
       repo.resumenDeVendedor(vendedorId),
       propiedadesRepo.contarPublicadasDe(vendedorId),
+      moderacionRepo.vendedorVerificado(vendedorId),
     ]);
     return {
       id:                     usuario.id,
@@ -174,8 +177,8 @@ export class ReputacionService {
       apellido:               usuario.apellido,
       foto_url:               usuario.foto_url,
       miembro_desde:          usuario.fecha_registro,
-      // TODO: insignia según verificacion_vendedor aprobada (RF-25)
-      verificado:             false,
+      // Insignia: verificación de identidad aprobada por un administrador (RF-25)
+      verificado,
       propiedades_publicadas: publicadas,
       calificacion:           formatearResumen(resumen),
     };

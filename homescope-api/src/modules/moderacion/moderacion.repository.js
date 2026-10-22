@@ -172,4 +172,61 @@ export class ModeracionRepository {
       WHERE accion = 'pausar'`;
     return filas.map((f) => f.propiedad_id);
   }
+
+  // ── Verificación de vendedores ──────────────────────────────────────────────
+
+  async crearVerificacion({ usuarioId, tipoDocumento, documentoRef }) {
+    return prisma.verificacionVendedor.create({
+      data: { usuario_id: usuarioId, tipo_documento: tipoDocumento, documento_url: documentoRef },
+    });
+  }
+
+  async ultimaVerificacion(usuarioId) {
+    return prisma.verificacionVendedor.findFirst({
+      where:   { usuario_id: usuarioId },
+      orderBy: [{ fecha_solicitud: 'desc' }, { id: 'desc' }],
+    });
+  }
+
+  // Verificado = tiene alguna solicitud aprobada
+  async vendedorVerificado(usuarioId) {
+    return (await prisma.verificacionVendedor.count({ where: { usuario_id: usuarioId, estado: 'aprobada' } })) > 0;
+  }
+
+  async buscarVerificacion(id) {
+    return prisma.verificacionVendedor.findUnique({ where: { id } });
+  }
+
+  // Cola del administrador: las pendientes de la más antigua a la más reciente; las revisadas, al revés
+  async listarVerificaciones({ estado, id, page, pageSize }) {
+    const where = { ...(estado && { estado }), ...(id && { id }) };
+    const [items, total] = await prisma.$transaction([
+      prisma.verificacionVendedor.findMany({
+        where,
+        orderBy: [{ fecha_solicitud: estado === 'pendiente' ? 'asc' : 'desc' }, { id: 'asc' }],
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+        include: {
+          usuario: {
+            select: {
+              id: true, nombre: true, apellido: true, email: true, estado: true, fecha_registro: true,
+              _count: { select: { propiedades: true } },
+            },
+          },
+          revisor: { select: { id: true, nombre: true, apellido: true } },
+        },
+      }),
+      prisma.verificacionVendedor.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  // Solo se revisa una pendiente (si otro administrador ya la revisó, no cambia nada) → si se revisó
+  async resolverVerificacion(id, { estado, revisadoPor, motivo }) {
+    const { count } = await prisma.verificacionVendedor.updateMany({
+      where: { id, estado: 'pendiente' },
+      data:  { estado, revisado_por: revisadoPor, motivo_rechazo: estado === 'rechazada' ? motivo : null, fecha_revision: new Date() },
+    });
+    return count > 0;
+  }
 }

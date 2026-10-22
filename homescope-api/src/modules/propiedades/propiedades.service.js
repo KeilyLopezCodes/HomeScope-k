@@ -132,8 +132,7 @@ export class PropiedadesService {
         nombre:   vendedor.nombre,
         apellido: vendedor.apellido,
         foto_url: vendedor.foto_url,
-        // TODO: tomar de verificacion_vendedor cuando exista ese módulo
-        verificado:            false,
+        verificado:            await moderacionRepo.vendedorVerificado(vendedor.id),
         calificacion_promedio: reputacion.promedio == null ? null : Math.round(reputacion.promedio * 10) / 10,
         total_resenas:         reputacion.total,
         ...(contactoVisible && { email: vendedor.email, telefono: vendedor.telefono }),
@@ -522,6 +521,11 @@ export class PropiedadesService {
     if (!cuenta.correo_verificado)
       throw new AppError('CORREO_NO_VERIFICADO',
         'Verifica tu correo electrónico para publicar o reactivar propiedades. Revisa el enlace que te enviamos al registrarte.', 403);
+    // Identidad del vendedor verificada por un administrador (los administradores no la necesitan)
+    const esAdmin = cuenta.usuario_rol.some((ur) => ROLES_ADMIN.includes(ur.rol.nombre.toLowerCase()));
+    if (!esAdmin && !(await moderacionRepo.vendedorVerificado(usuarioId)))
+      throw new AppError('VENDEDOR_NO_VERIFICADO',
+        'Verifica tu identidad para publicar: envía tu documento desde "Verificar identidad" y un administrador lo revisará.', 403);
   }
 
   // Al publicar o reactivar: si no tenía vigencia o ya venció, empieza un periodo nuevo; si no, se conserva
