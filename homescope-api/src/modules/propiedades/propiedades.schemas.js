@@ -52,6 +52,7 @@ const opcional = (schema) => z.preprocess((v) => (v === '' || v === null ? undef
 
 // Sin parámetros es el catálogo completo; con ellos, la búsqueda (RF-18, HU-20). Siempre paginado (RNF-02)
 export const MAX_COMPARAR = 4;
+export const MAX_MAPA = 100;
 
 export const listarPropiedadesSchema = z.object({
   // Texto libre: título, descripción, dirección, zona, municipio y departamento, sin distinguir tildes
@@ -76,9 +77,20 @@ export const listarPropiedadesSchema = z.object({
     .transform((v) => [...new Set(v.split(',').map((x) => Number(x.trim())).filter((x) => x))])
     .refine((lista) => lista.length >= 1 && lista.every((x) => Number.isInteger(x) && x > 0), { message: 'ids debe ser una lista de ids separados por coma' })
     .refine((lista) => lista.length <= MAX_COMPARAR, { message: `Se comparan hasta ${MAX_COMPARAR} propiedades` })),
+  // ?bbox=oeste,sur,este,norte (longitudes y latitudes): solo las que están dentro del área visible
+  // del mapa. Las propiedades sin coordenadas no aparecen
+  bbox:             opcional(z.string()
+    .transform((v) => v.split(',').map((x) => Number(x.trim())))
+    .refine((c) => c.length === 4 && c.every(Number.isFinite), { message: 'bbox debe ser oeste,sur,este,norte' })
+    .refine(([oeste, sur, este, norte]) => sur >= -90 && norte <= 90 && sur < norte && oeste >= -180 && este <= 180 && oeste < este, {
+      message: 'bbox fuera de rango: sur < norte (−90 a 90) y oeste < este (−180 a 180)',
+    })
+    .transform(([oeste, sur, este, norte]) => ({ oeste, sur, este, norte }))),
   page:             z.coerce.number().int().min(1).default(1),
-  pageSize:         z.coerce.number().int().min(1).max(50).default(20),
+  // El mapa pide más a la vez (todas las del área visible, hasta MAX_MAPA)
+  pageSize:         z.coerce.number().int().min(1).max(MAX_MAPA).default(20),
 })
+  .refine((f) => f.bbox || f.pageSize <= 50, { message: 'pageSize máximo 50 (hasta 100 con bbox)', path: ['pageSize'] })
   .refine((f) => f.precio_min == null || f.precio_max == null || f.precio_min <= f.precio_max, {
     message: 'precio_min no puede ser mayor que precio_max', path: ['precio_min'],
   })

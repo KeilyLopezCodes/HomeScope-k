@@ -22,6 +22,7 @@ const PROPIEDAD_LISTA = {
   modalidad: true, estado: true, fecha_creacion: true,
   zona: true, municipio: true, departamento: true,
   habitaciones: true, banos: true, area_m2: true, parqueos: true, fecha_publicacion: true,
+  latitud: true, longitud: true,
   tipo_propiedad: { select: { nombre: true } },
   vendedor:       { select: VENDEDOR_PUBLICO },
   fotos: {
@@ -50,6 +51,8 @@ export class PropiedadesRepository {
     if (f.precio_max != null)       condiciones.push(Prisma.sql`p.precio <= ${f.precio_max}`);
     if (f.habitaciones_min != null) condiciones.push(Prisma.sql`p.habitaciones >= ${f.habitaciones_min}`);
     if (f.indice_min != null)       condiciones.push(Prisma.sql`ic.puntaje_total >= ${f.indice_min}`);
+    if (f.bbox) condiciones.push(Prisma.sql`p.latitud BETWEEN ${f.bbox.sur} AND ${f.bbox.norte}
+      AND p.longitud BETWEEN ${f.bbox.oeste} AND ${f.bbox.este}`);
     const donde = Prisma.join(condiciones, ' AND ');
 
     const ORDEN = {
