@@ -4,10 +4,12 @@ import { Badge, Button, EmptyState, Spinner } from '../../../shared/components/u
 import NotFoundPage from '../../../shared/pages/NotFoundPage';
 import ResumenCalificacion from '../components/ResumenCalificacion';
 import ListaResenas from '../components/ListaResenas';
+import PropiedadesDelVendedor from '../components/PropiedadesDelVendedor';
 import { usePerfilVendedor } from '../hooks/useResenas';
 import { mesYAnio } from '../utils/fechas';
 
-// /vendedores/:id — perfil público: datos básicos (sin contacto, RNF-08), calificación promedio y reseñas
+// /vendedores/:id — perfil público: datos básicos (sin contacto, RNF-08), sus propiedades publicadas,
+// calificación promedio y reseñas
 export default function PerfilVendedorPage() {
   const { id } = useParams();
   const idValido = /^\d+$/.test(id);
@@ -52,6 +54,8 @@ export default function PerfilVendedorPage() {
           </p>
         </div>
       </header>
+
+      <PropiedadesDelVendedor vendedorId={perfil.id} nombre={perfil.nombre} />
 
       <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
         <section aria-labelledby="titulo-calificacion" className="h-fit rounded-lg border border-secondary-200 bg-white p-5 lg:sticky lg:top-20">

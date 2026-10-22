@@ -52,6 +52,7 @@ export class PropiedadesRepository {
     const condiciones = [Prisma.sql`p.estado = 'publicado'`];
     if (consulta)                   condiciones.push(Prisma.sql`${VECTOR_TEXTO} @@ ${consulta}`);
     if (f.modalidad)                condiciones.push(Prisma.sql`p.modalidad = ${f.modalidad}`);
+    if (f.vendedor)                 condiciones.push(Prisma.sql`p.vendedor_id = ${f.vendedor}`);
     if (f.tipo)                     condiciones.push(Prisma.sql`tp.nombre = ANY(${f.tipo})`);
     if (f.moneda)                   condiciones.push(Prisma.sql`p.moneda = ${f.moneda}`);
     if (f.precio_min != null)       condiciones.push(Prisma.sql`p.precio >= ${f.precio_min}`);

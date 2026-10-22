@@ -31,6 +31,7 @@ const router = Router();
  *         incluyen propiedades publicadas en esa moneda.
  *       - `indice_min` excluye las propiedades que aún no tienen índice calculado.
  *       - Sin `orden`: por relevancia si hay `q`, si no las más recientes.
+ *       - `vendedor`: solo las publicadas de ese vendedor (perfil público del vendedor).
  *       - `bbox` (búsqueda en el mapa): solo las que están dentro del rectángulo visible
  *         `oeste,sur,este,norte` (longitudes y latitudes), combinado con los demás filtros. Admite `pageSize` hasta 100.
  *         Las propiedades sin coordenadas no aparecen.
@@ -48,6 +49,7 @@ const router = Router();
  *       - { in: query, name: indice_min, description: "Puntaje mínimo del Índice de Conveniencia (0–100)", schema: { type: number, minimum: 0, maximum: 100, example: 70 } }
  *       - { in: query, name: orden, schema: { type: string, enum: [relevancia, recientes, precio_asc, precio_desc, indice_desc] } }
  *       - { in: query, name: ids, description: "Comparador: hasta 4 ids separados por coma", schema: { type: string, example: "45,46,48" } }
+ *       - { in: query, name: vendedor, description: "Id del vendedor: solo sus propiedades publicadas", schema: { type: integer, example: 7 } }
  *       - { in: query, name: bbox, description: "Área visible del mapa: oeste,sur,este,norte", schema: { type: string, example: "-90.6,14.5,-89.8,14.7" } }
  *       - { in: query, name: page, schema: { type: integer, default: 1, minimum: 1 } }
  *       - { in: query, name: pageSize, schema: { type: integer, default: 20, minimum: 1, maximum: 50 } }

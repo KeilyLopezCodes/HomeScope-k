@@ -72,6 +72,8 @@ export const listarPropiedadesSchema = z.object({
   // Puntaje mínimo del Índice de Conveniencia vigente (excluye las propiedades sin índice)
   indice_min:       opcional(z.coerce.number().min(0).max(100)),
   orden:            opcional(z.enum(ORDENES)),
+  // ?vendedor=11: solo las de ese vendedor (perfil público del vendedor)
+  vendedor:         opcional(z.coerce.number().int().positive()),
   // ?ids=12,15,40: esas propiedades (máximo 4, comparador), en ese orden y con el índice desglosado
   ids:              opcional(z.string()
     .transform((v) => [...new Set(v.split(',').map((x) => Number(x.trim())).filter((x) => x))])
