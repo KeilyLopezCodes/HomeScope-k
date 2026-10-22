@@ -63,6 +63,8 @@ model Usuario {
   notificaciones           Notificacion[]
   acciones_moderacion_realizadas AccionModeracion[] @relation("AccionAdministrador")
   acciones_moderacion_recibidas  AccionModeracion[] @relation("AccionUsuario")
+  verificaciones          VerificacionVendedor[] @relation("VerificacionSolicitante")
+  verificaciones_revisadas VerificacionVendedor[] @relation("VerificacionRevisor")
   disponibilidad           DisponibilidadVendedor[]
   visitas_solicitadas      Visita[]
   resenas_recibidas        Resena[]  @relation("ResenaVendedor")
@@ -455,4 +457,24 @@ model AccionModeracion {
   @@index([usuario_id, fecha_accion])
   @@index([fecha_accion])
   @@map("accion_moderacion")
+}
+
+// Verificación de identidad del vendedor (migración 20261027120000_verificacion_vendedor).
+// documento_url es la referencia del archivo en el almacenamiento privado, no una URL pública
+model VerificacionVendedor {
+  id              Int       @id @default(autoincrement())
+  usuario_id      Int
+  tipo_documento  String    @db.VarChar(30) // dpi|pasaporte|licencia
+  documento_url   String    @db.VarChar(500)
+  estado          String    @default("pendiente") @db.VarChar(20) // pendiente|aprobada|rechazada
+  revisado_por    Int?
+  motivo_rechazo  String?   @db.VarChar(300)
+  fecha_solicitud DateTime  @default(now()) @db.Timestamptz
+  fecha_revision  DateTime? @db.Timestamptz
+  usuario         Usuario   @relation("VerificacionSolicitante", fields: [usuario_id], references: [id], onDelete: Cascade)
+  revisor         Usuario?  @relation("VerificacionRevisor", fields: [revisado_por], references: [id], onDelete: SetNull)
+
+  @@index([usuario_id, fecha_solicitud])
+  @@index([estado, fecha_solicitud])
+  @@map("verificacion_vendedor")
 }
